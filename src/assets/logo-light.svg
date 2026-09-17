@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 40" width="240" height="40" role="img" aria-label="SystemOne.dev">
+  <rect x="1" y="7" width="26" height="26" rx="7" fill="none" stroke="#2b6cb0" stroke-width="2"/>
+  <path d="M8 20h4l3-6 4 12 3-6h4" fill="none" stroke="#2059a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="38" y="26" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#14181c" letter-spacing="-0.3">SystemOne<tspan fill="#5b6672">.dev</tspan></text>
+</svg>

@@ -1,0 +1,30 @@
+{
+  "name": "systemone-dev",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "systemone.dev — the community hub for decision-native AI.",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro check && astro build",
+    "build:fast": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "linkcheck": "node scripts/linkcheck.mjs dist",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.1",
+    "astro": "^7.3.2",
+    "sharp": "^0.35.4",
+    "starlight-blog": "^0.29.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

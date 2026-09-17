@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Type-check, build, and link-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Runs `astro check` (content schema + types) then `astro build`.
+      - run: npm run build
+
+      # Fails the build on any broken internal link or heading anchor.
+      - run: npm run linkcheck

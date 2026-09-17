@@ -1,0 +1,137 @@
+---
+title: Community for Developers from Generative AI to Decision AI
+description: The community hub for decision-native AI — typed outputs, calibrated confidence, 70ms workflows, zero hallucinations.
+template: splash
+hero:
+  title: Stop Parsing Markdown.<br />Start Building Reliable Workflows.
+  tagline: The community hub for decision-native AI.
+  actions:
+    - text: Start here
+      link: /start/
+      icon: right-arrow
+      variant: primary
+    - text: Read the concepts
+      link: /concepts/system1-vs-system2/
+      icon: open-book
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/systemone-dev/systemone.dev
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard, Code, Tabs, TabItem } from '@astrojs/starlight/components';
+
+SystemOne.dev is the community hub for **decision-native AI**. Learn how to use models like
+TypeSafe Jev to build 70ms workflows with typed outputs, calibrated confidence, and zero
+hallucinations.
+
+<ul class="so-latency">
+  <li><strong>70ms</strong><span>Typical decision latency, not token-stream latency</span></li>
+  <li><strong>0</strong><span>String hallucinations, by architectural design</span></li>
+  <li><strong>1.00</strong><span>Confidence is a number you can branch on</span></li>
+</ul>
+
+## The shift in one code block
+
+A System 2 model hands you a string and asks you to trust it. A System 1 model hands you a
+typed decision and a calibrated probability — so you can write ordinary deterministic code
+around it.
+
+<Tabs>
+<TabItem label="System 1 (decision-native)">
+
+```javascript title="firewall.js"
+const decision = await jev.evaluate({
+  input: rawLogData,
+  categories: ['sql_injection', 'safe_traffic'],
+});
+
+if (decision.confidence > 0.95 && decision.category === 'sql_injection') {
+  firewall.blockIP(request.ip);
+} else {
+  routeToHumanAnalyst(rawLogData);
+}
+```
+
+No parsing. No retries. No `ONLY RETURN VALID JSON`. The branch is yours.
+
+</TabItem>
+<TabItem label="System 2 (generative)">
+
+```javascript title="firewall-generative.js"
+const res = await llm.chat({
+  messages: [
+    { role: 'system', content: 'You are a security classifier. ONLY RETURN VALID JSON...' },
+    { role: 'user', content: rawLogData },
+  ],
+});
+
+let decision;
+try {
+  decision = JSON.parse(stripCodeFences(res.choices[0].message.content));
+} catch {
+  return retryWithBackoff(rawLogData); // ...and hope round two parses
+}
+
+// `decision.confidence` is a number the model wrote down. It is not calibrated.
+```
+
+Three seconds, a parser, a retry loop, and a confidence score that means nothing.
+
+</TabItem>
+</Tabs>
+
+## Start where you are
+
+<CardGrid stagger>
+  <Card title="I'm new to this" icon="rocket">
+    Begin with [Start Here](/start/) for the five-minute mental model, then run the
+    [quickstart](/start/quickstart/) to get a typed decision back from real input.
+  </Card>
+  <Card title="I have a latency problem" icon="setting">
+    A System 2 model in your hot path is costing you seconds. Read
+    [Handling the 70ms Loop](/cookbook/the-70ms-loop/) and
+    [the fuzzy if-statement](/cookbook/fuzzy-if-statement/).
+  </Card>
+  <Card title="I have a reliability problem" icon="approve-check">
+    Your JSON parser is your biggest source of incidents. See
+    [The Zero Hallucination Guarantee](/concepts/zero-hallucination/) and
+    [Calibrated Confidence](/concepts/calibrated-confidence/).
+  </Card>
+  <Card title="I want to build something" icon="puzzle">
+    Ship an end-to-end system this week: an [AI firewall](/projects/cybersecurity/),
+    a [data pipeline](/projects/data-engineering/), or a
+    [moderation queue](/projects/moderation-triage/).
+  </Card>
+</CardGrid>
+
+## The four sections
+
+<LinkCard
+  title="Concepts — the unlearning section"
+  description="System 1 vs System 2, RLCD vs RLHF, why zero hallucination is architectural, and how to actually read a confidence score."
+  href="/concepts/"
+/>
+<LinkCard
+  title="Cookbook — integration patterns"
+  description="Copy-paste patterns: fuzzy if-statements, the 70ms loop, structured state ingestion, agent guardrails and verification."
+  href="/cookbook/"
+/>
+<LinkCard
+  title="Projects — end-to-end builds"
+  description="Full tutorials for security, data engineering, and moderation workloads."
+  href="/projects/"
+/>
+<LinkCard
+  title="Community — build this with us"
+  description="How to contribute a page, the roadmap, and where the conversation happens."
+  href="/community/"
+/>
+
+---
+
+**SystemOne.dev is model-agnostic and vendor-neutral.** It is the community for *all*
+fast-decision AI frameworks. Jev appears throughout because it is the most complete
+implementation available today — not because this site belongs to it.
+[Add your framework](/community/contributing/).

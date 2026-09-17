@@ -1,0 +1,73 @@
+---
+// Renders Starlight's own site title, then starlight-blog's header link (so the plugin's
+// override is not clobbered), then the top-level section nav from the master spec.
+import Default from '@astrojs/starlight/components/SiteTitle.astro';
+import BlogHeaderLink from 'starlight-blog/components/SiteTitle.astro';
+
+const path = Astro.url.pathname;
+
+const sections = [
+  { label: 'Concepts', href: '/concepts/' },
+  { label: 'Cookbook', href: '/cookbook/' },
+  { label: 'Projects', href: '/projects/' },
+  { label: 'Community', href: '/community/' },
+];
+
+const isActive = (href: string) => path === href || path.startsWith(href);
+---
+
+<div class="so-title-wrap">
+  <Default><slot /></Default>
+  <BlogHeaderLink><slot /></BlogHeaderLink>
+  <nav class="so-topnav" aria-label="Sections">
+    {
+      sections.map((section) => (
+        <a href={section.href} aria-current={isActive(section.href) ? 'page' : undefined}>
+          {section.label}
+        </a>
+      ))
+    }
+  </nav>
+</div>
+
+<style>
+  .so-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .so-topnav {
+    display: none;
+    gap: 1.25rem;
+    font-size: var(--sl-text-sm);
+  }
+
+  .so-topnav a {
+    color: var(--sl-color-gray-3);
+    text-decoration: none;
+    white-space: nowrap;
+    padding-block: 0.25rem;
+    border-bottom: 2px solid transparent;
+    transition: color 150ms ease, border-color 150ms ease;
+  }
+
+  .so-topnav a:hover {
+    color: var(--sl-color-white);
+  }
+
+  .so-topnav a[aria-current='page'] {
+    color: var(--sl-color-text-accent);
+    border-bottom-color: var(--sl-color-text-accent);
+  }
+
+  /* Starlight collapses the header into a mobile layout below this width; the
+     section links live in the sidebar there, so showing them twice is noise. */
+  @media (min-width: 72rem) {
+    .so-topnav {
+      display: flex;
+    }
+  }
+</style>

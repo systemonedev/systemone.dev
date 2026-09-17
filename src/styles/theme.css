@@ -1,0 +1,147 @@
+/* SystemOne.dev theme
+   Dark-mode default. Muted slate grays + desaturated blue accent, tuned for
+   long-form technical reading and high-contrast code. */
+
+@layer starlight.theme {
+  :root {
+    /* Desaturated blue accent */
+    --sl-color-accent-low: #10243e;
+    --sl-color-accent: #2b6cb0;
+    --sl-color-accent-high: #a9c9ea;
+
+    /* Slate gray scale */
+    --sl-color-white: #f5f7fa;
+    --sl-color-gray-1: #e2e8f0;
+    --sl-color-gray-2: #b6c2d1;
+    --sl-color-gray-3: #8996a8;
+    --sl-color-gray-4: #55616f;
+    --sl-color-gray-5: #364049;
+    --sl-color-gray-6: #23292f;
+    --sl-color-black: #14181c;
+
+    --sl-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+      'Helvetica Neue', Arial, sans-serif;
+    --sl-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono',
+      Menlo, Consolas, 'Liberation Mono', monospace;
+
+    /* Local tokens */
+    --so-surface: #1a1f25;
+    --so-border: #2c343d;
+    --so-glow: rgba(43, 108, 176, 0.18);
+  }
+
+  :root[data-theme='light'] {
+    --sl-color-accent-low: #cfe0f2;
+    --sl-color-accent: #2059a0;
+    --sl-color-accent-high: #16345c;
+
+    --sl-color-white: #14181c;
+    --sl-color-gray-1: #23292f;
+    --sl-color-gray-2: #364049;
+    --sl-color-gray-3: #5b6672;
+    --sl-color-gray-4: #8996a8;
+    --sl-color-gray-5: #d3dae2;
+    --sl-color-gray-6: #eef1f5;
+    --sl-color-gray-7: #f6f8fa;
+    --sl-color-black: #ffffff;
+
+    --so-surface: #f6f8fa;
+    --so-border: #dde3ea;
+    --so-glow: rgba(32, 89, 160, 0.1);
+  }
+}
+
+/* Technical terms in prose read as machine-native, per the spec. */
+.sl-markdown-content :not(pre, h1, h2, h3, h4, h5, h6) > code {
+  font-family: var(--sl-font-mono);
+  font-size: 0.875em;
+  background: var(--so-surface);
+  border: 1px solid var(--so-border);
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+}
+
+.sl-markdown-content pre {
+  border: 1px solid var(--so-border);
+  border-radius: 0.5rem;
+}
+
+/* Comparison tables (System 1 vs System 2) carry a lot of weight on this site. */
+.sl-markdown-content table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sl-text-sm);
+}
+
+.sl-markdown-content :is(th, td) {
+  border: 1px solid var(--so-border);
+  padding: 0.6rem 0.8rem;
+}
+
+.sl-markdown-content thead th {
+  background: var(--so-surface);
+  color: var(--sl-color-white);
+  text-align: left;
+}
+
+.sl-markdown-content tbody tr:nth-child(odd) {
+  background: color-mix(in srgb, var(--so-surface) 45%, transparent);
+}
+
+/* --- Landing page --- */
+
+.hero-tagline {
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sl-color-text-accent);
+  border: 1px solid var(--sl-color-accent);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  display: inline-block;
+  margin-bottom: 1.25rem;
+}
+
+.so-latency {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 2rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.so-latency li {
+  flex: 1 1 10rem;
+  background: var(--so-surface);
+  border: 1px solid var(--so-border);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.so-latency strong {
+  display: block;
+  font-family: var(--sl-font-mono);
+  font-size: 1.6rem;
+  line-height: 1.2;
+  color: var(--sl-color-text-accent);
+}
+
+.so-latency span {
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}
+
+/* Full-bleed section bands on the splash page. */
+.so-band {
+  background: var(--so-surface);
+  border-block: 1px solid var(--so-border);
+  margin-block: 3rem;
+  padding-block: 2.5rem;
+}
+
+.so-band > :first-child {
+  margin-top: 0;
+}
