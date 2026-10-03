@@ -1,206 +1,183 @@
 ---
-title: Structured State Ingestion
-description: Turning logs, records, and events into input a decision model evaluates well.
+title: Structured State
+description: Turning logs, records and events into state a System One model evaluates well.
 sidebar:
-  label: Structured State Ingestion
+  label: Structured State
   order: 3
 ---
 
-Your production state is structured: rows, objects, events, nested records. The model evaluates
-unstructured state. The translation between them is the highest-leverage step in the whole
-integration, and the one most teams skip.
+Your production state is structured: rows, objects, events, nested records. A System One request
+takes that structure directly (`state` can be a JSON object), but *which* structure you send is the
+highest-leverage step in the whole integration, and the one most teams skip.
 
-Two teams with the same model and the same categories routinely see very different accuracy.
-It is almost always this.
+Two teams with the same model and the same questions routinely see very different accuracy. It's
+almost always this.
 
 ## The principle
 
-You are not writing a prompt. You are **selecting and presenting evidence.** Everything in the
-input should be something a competent human would look at to make the same decision. Everything
-else is noise competing for the model's attention.
+You're not writing a prompt. You're **selecting and presenting evidence.** Everything in the state
+should be something a competent person would look at to make the same decision. Everything else is
+noise competing for the model's attention, and for its token budget: Kenning reads 512 tokens per
+(state, option) pair and cuts off the rest.
 
-## Do not dump JSON
+## Don't dump the whole record
 
-```javascript title="dont.js"
-// Weak: keys, nesting, and internal identifiers the decision does not depend on.
-const decision = await jev.evaluate({
-  input: JSON.stringify(order),
-  categories: ['fraud', 'legitimate'],
-});
+```python title="dont.py"
+# Weak: keys, nesting and internal identifiers the decision doesn't depend on.
+r = client.system_one(state=order.to_dict(), questions={"fraud": Noul("Is this order fraudulent?")})
 ```
 
-Raw `JSON.stringify` gives the model punctuation, schema noise, UUIDs, timestamps in epoch
-milliseconds, and internal flags — all weighted the same as the signal.
+A raw record gives the model UUIDs, epoch timestamps, internal flags and schema noise, all weighted
+the same as the signal, and it can push the signal past the token limit.
 
-```javascript title="do.js"
-// Strong: labelled, human-readable, signal only.
-function serializeOrder(order) {
-  return [
-    `Order total: $${order.total}`,
-    `Account age: ${daysSince(order.account.createdAt)} days`,
-    `Previous orders: ${order.account.orderCount}`,
-    `Billing country: ${order.billing.country}`,
-    `Shipping country: ${order.shipping.country}`,
-    `Billing and shipping match: ${order.billing.country === order.shipping.country}`,
-    `Payment method: ${order.payment.type}`,
-    `Card country: ${order.payment.issuerCountry}`,
-    `Email domain: ${order.account.email.split('@')[1]}`,
-    `Items: ${order.items.map((i) => i.name).join(', ')}`,
-    `Order placed: ${describeTime(order.createdAt)}`,
-  ].join('\n');
-}
+```python title="do.py"
+# Strong: descriptive keys, derived signals, nothing else.
+def order_state(order) -> dict:
+    return {
+        "order_total_usd": order.total,
+        "account_age_days": days_since(order.account.created_at),
+        "previous_orders": order.account.order_count,
+        "billing_country": order.billing.country,
+        "shipping_country": order.shipping.country,
+        "billing_and_shipping_match": order.billing.country == order.shipping.country,
+        "payment_method": order.payment.type,
+        "card_issuer_country": order.payment.issuer_country,
+        "email_domain": order.account.email.split("@")[1],
+        "items": [i.name for i in order.items],
+        "placed": describe_time(order.created_at),
+    }
 
-const decision = await jev.evaluate({
-  input: serializeOrder(order),
-  categories: ['fraud', 'legitimate', 'unclear'],
-});
+r = client.system_one(state={"order": order_state(order)}, questions={
+    "fraud": Noul("Is this order fraudulent?"),
+})
 ```
 
 ## The rules
 
-### 1. Label every field
+### 1. Make keys say what they mean
 
-`Account age: 3 days` carries the meaning. A bare `3` does not.
+The model reads the keys. `"account_age_days": 3` carries the meaning; `"aa": 3` doesn't. Include
+units in the name (`_days`, `_usd`).
 
 ### 2. Compute the comparison, don't make the model do it
 
-If the signal is "billing and shipping countries differ," state that as a boolean. Derived
-features are cheap for you and eliminate a step the model would otherwise have to infer.
+If the signal is "billing and shipping countries differ", send that as a boolean. Derived features
+are cheap for you and remove a step the model would otherwise have to infer. Arithmetic and dates are
+exactly where models of this size are weakest.
 
-```javascript
-`Billing and shipping match: ${b.country === s.country}`,
-`Unusually large vs account average: ${order.total > account.avgOrderValue * 5}`,
-`First order from this device: ${!account.knownDevices.includes(deviceId)}`,
+```python
+"billing_and_shipping_match": b.country == s.country,
+"unusually_large_vs_account_average": order.total > account.avg_order_value * 5,
+"first_order_from_this_device": device_id not in account.known_devices,
 ```
 
 ### 3. Make time relative
 
-`1710432000` and `2024-03-14T16:00:00Z` both require the model to know "now." Convert:
+`1710432000` and `2024-03-14T16:00:00Z` both require the model to know what "now" is. Convert:
 
-```javascript
-function describeTime(ts) {
-  const mins = (Date.now() - new Date(ts)) / 60_000;
-  if (mins < 60) return `${Math.round(mins)} minutes ago`;
-  if (mins < 1440) return `${Math.round(mins / 60)} hours ago`;
-  return `${Math.round(mins / 1440)} days ago`;
+```python
+def describe_time(ts: datetime) -> str:
+    mins = (datetime.now(timezone.utc) - ts).total_seconds() / 60
+    if mins < 60:
+        return f"{round(mins)} minutes ago"
+    if mins < 1440:
+        return f"{round(mins / 60)} hours ago"
+    return f"{round(mins / 1440)} days ago"
+```
+
+"3 minutes ago, at 04:12 local time" is a fraud signal. An epoch timestamp isn't.
+
+### 4. Drop what the decision doesn't depend on
+
+UUIDs, internal flags, schema versions, audit columns. If a person reviewing the case wouldn't look at
+it, it's noise. Smaller state is also faster.
+
+### 5. Truncate long text from both ends
+
+For long text, the beginning and end usually carry the signal. Keep both, so a footer isn't silently
+cut off:
+
+```python
+def truncate(text: str, max_chars: int = 1500) -> str:
+    if len(text) <= max_chars:
+        return text
+    half = max_chars // 2 - 20
+    return f"{text[:half]}\n[... {len(text) - max_chars} characters omitted ...]\n{text[-half:]}"
+```
+
+### 6. Keep untrusted content in its own field
+
+When the state contains user-controlled text, put it in a clearly named field, separate from the facts
+you computed:
+
+```python
+state = {
+    "sender": email.sender,
+    "sender_domain_age_days": domain_age_days,
+    "spf": email.spf, "dkim": email.dkim,
+    "link_domains": extract_domains(email.body),
+    "untrusted_message_body": truncate(email.body),
 }
 ```
 
-`3 minutes ago, at 04:12 local time` is a fraud signal. An epoch timestamp is not.
-
-### 4. Drop what the decision does not depend on
-
-UUIDs, internal flags, schema versions, audit columns. If a human reviewer would not look at
-it, it is noise. This also keeps your input small, which keeps it fast.
-
-### 5. Truncate long fields from both ends
-
-For long text, the beginning and end usually carry the signal — the middle is filler. Keep both:
-
-```javascript
-function truncate(text, max = 2000) {
-  if (text.length <= max) return text;
-  const half = Math.floor(max / 2) - 20;
-  return `${text.slice(0, half)}\n\n[... ${text.length - max} characters omitted ...]\n\n${text.slice(-half)}`;
-}
-```
-
-Naive head-truncation is how injected instructions in a message footer get silently dropped.
-
-### 6. Mark untrusted content explicitly
-
-When the input contains user-controlled text, fence it so the boundary is unambiguous:
-
-```javascript
-const input = [
-  `Sender: ${email.from}`,
-  `Sender domain age: ${domainAgeDays} days`,
-  `SPF: ${email.spf}  DKIM: ${email.dkim}`,
-  `Links point to: ${extractDomains(email.body).join(', ')}`,
-  '',
-  '--- BEGIN UNTRUSTED MESSAGE BODY ---',
-  truncate(email.body),
-  '--- END UNTRUSTED MESSAGE BODY ---',
-].join('\n');
-```
-
-A decision model has no instruction channel to hijack — see
-[Zero Hallucination](/concepts/zero-hallucination/) — but the fence still helps it treat that
-region as content being described rather than context to reason from.
+A System One model has no instruction channel to hijack (see
+[what "no hallucination" means](/concepts/zero-hallucination/)), but text inside the body can still
+try to sway the answer. Facts you computed yourself, like domain age, SPF and link domains, are much
+harder for an attacker to fake than words in the body.
 
 ## Worked example: an HTTP request
 
-```javascript title="serialize-request.js"
-export function serializeRequest(req) {
-  const lines = [
-    `Method: ${req.method}`,
-    `Path: ${req.path}`,
-    `Source IP reputation: ${req.ipReputation ?? 'unknown'}`,
-    `Requests from this IP in last minute: ${req.rateCount}`,
-    `Authenticated: ${Boolean(req.userId)}`,
-    `User agent: ${req.headers['user-agent'] ?? '(none)'}`,
-  ];
-
-  if (req.query && Object.keys(req.query).length) {
-    lines.push('', 'Query parameters:');
-    for (const [k, v] of Object.entries(req.query)) {
-      lines.push(`  ${k} = ${truncate(String(v), 500)}`);
+```python title="request_state.py"
+def request_state(req) -> dict:
+    state = {
+        "method": req.method,
+        "path": req.path,
+        "source_ip_reputation": req.ip_reputation or "unknown",
+        "requests_from_this_ip_last_minute": req.rate_count,
+        "authenticated": req.user_id is not None,
+        "user_agent": req.headers.get("user-agent", "(none)"),
     }
-  }
-
-  if (req.body) {
-    lines.push('', '--- BEGIN REQUEST BODY ---', truncate(stringify(req.body), 1500), '--- END REQUEST BODY ---');
-  }
-
-  return lines.join('\n');
-}
+    if req.query:
+        state["query_parameters"] = {k: truncate(str(v), 300) for k, v in req.query.items()}
+    if req.body:
+        state["untrusted_request_body"] = truncate(stringify(req.body), 1000)
+    return state
 ```
 
-Note what is absent: request IDs, trace headers, cookies unrelated to auth, content-length. None
-of it informs "is this an injection attempt."
+Note what's absent: request ids, trace headers, cookies unrelated to auth, content-length. None of it
+informs "is this an injection attempt?"
 
-## Keep serialization pure and tested
+## Keep the state builder pure and tested
 
-Serialization is ordinary code. Test it like ordinary code, and snapshot it so you notice when
-it changes:
+The function that builds the state is ordinary code. Test it like ordinary code:
 
-```javascript title="serialize.test.js"
-it('flags a country mismatch', () => {
-  const out = serializeOrder(fixtures.mismatchedCountries);
-  expect(out).toContain('Billing and shipping match: false');
-});
+```python title="test_order_state.py"
+def test_flags_a_country_mismatch():
+    assert order_state(fixtures.mismatched_countries)["billing_and_shipping_match"] is False
 
-it('never leaks a full card number', () => {
-  expect(serializeOrder(fixtures.withCard)).not.toMatch(/\d{13,19}/);
-});
-
-it('is stable', () => {
-  expect(serializeOrder(fixtures.standard)).toMatchSnapshot();
-});
+def test_never_leaks_a_card_number():
+    assert not re.search(r"\d{13,19}", json.dumps(order_state(fixtures.with_card)))
 ```
 
-That second test matters. **Serialization is a data egress point.** Everything you put in the
-input goes to the model provider — audit it for PII, secrets, and card data deliberately, and
-redact at the serializer rather than hoping upstream did it.
+That second test matters. **The state is a data egress point.** With a hosted engine, everything in
+it leaves your network. Audit it for personal data, secrets and card numbers deliberately, and redact
+in the state builder rather than hoping upstream did. A local model like Kenning keeps the data on
+your machine, which is one reason to choose one.
 
-## Version your serializer
+## Version your state builder
 
-When you change serialization, you change the question. Accuracy will move, and you need to
-know why six weeks later:
+When you change the state, you change the question. Accuracy will move, and six weeks later you'll
+need to know why:
 
-```javascript
-export const SERIALIZER_VERSION = 'order-v3';
+```python
+STATE_VERSION = "order-v3"
 
-await auditLog.write({
-  serializerVersion: SERIALIZER_VERSION,
-  categories: CATEGORIES,
-  decision,
-});
+audit_log.write({"state_version": STATE_VERSION, "model": r.model, "answers": r.raw["answers"]})
 ```
 
-Without this, a model swap and a serializer change look identical in your metrics.
+Without this, a model swap and a state change look identical in your metrics.
 
 ## Next
 
-- [The Fuzzy If-Statement](/cookbook/fuzzy-if-statement/) — what to do with the decision
-- [Data Engineering project](/projects/data-engineering/) — this pattern at pipeline scale
+- [The fuzzy if-statement](/cookbook/fuzzy-if-statement/): what to do with the answer
+- [Data engineering project](/projects/data-engineering/): this pattern at pipeline scale

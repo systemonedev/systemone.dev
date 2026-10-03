@@ -1,251 +1,197 @@
 ---
-title: 'Data Engineering: Map-Reducing Messy Data'
-description: Turning unstructured records into structured features at pipeline scale, with confidence-aware quality gates.
+title: 'Data Engineering: Structuring Messy Data'
+description: Turning unstructured records into structured fields at pipeline scale, with probability-aware quality gates.
 sidebar:
   label: Data Engineering
   order: 2
 ---
 
-The classic data engineering problem: a table with a free-text column that nobody can query.
-Support tickets, product descriptions, job titles, transaction memos, scraped listings.
+The classic data engineering problem: a table with a free-text column nobody can query. Support
+tickets, product descriptions, job titles, transaction memos, scraped listings.
 
-Regex gets you 60% and a maintenance burden. An LLM gets you 90% and a bill that makes the
-project non-viable at ten million rows. A decision model is built for exactly this shape.
+Regex gets you part of the way, plus a maintenance burden. A generative LLM gets you further, at a cost
+and speed that make ten million rows impractical. A System One model is built for exactly this shape: a
+fixed set of fields, and a probability on each one telling you which rows to trust.
 
 ## The pipeline
 
 ```text
-  source rows ──▶ serialize ──▶ batch evaluate ──▶ confidence split
-                                                        │
-                            ┌───────────────────────────┼──────────────────┐
-                            ▼                           ▼                  ▼
-                    ≥ threshold                     mid band           < floor
-                    write feature                 review queue      quarantine
+  source rows ──▶ build state ──▶ ask (concurrently) ──▶ split on probability
+                                                              │
+                            ┌─────────────────────────────────┼──────────────────┐
+                            ▼                                 ▼                  ▼
+                       ≥ threshold                        mid band           < floor
+                     write the field                    review queue       quarantine
 ```
 
-## Step 1: Serialize the row
+## Step 1: Build the state
 
-Classification quality lives or dies here — see
-[Structured State Ingestion](/cookbook/structured-state-ingestion/).
+Quality lives or dies here: see [structured state](/cookbook/structured-state-ingestion/).
 
-```javascript title="serialize.js"
-export const SERIALIZER_VERSION = 'listing-v2';
+```python title="listing_state.py"
+STATE_VERSION = "listing-v2"
 
-export function serializeListing(row) {
-  return [
-    `Title: ${row.title}`,
-    `Price: ${row.price_cents ? `$${(row.price_cents / 100).toFixed(2)}` : 'not listed'}`,
-    `Seller type: ${row.seller_is_business ? 'business' : 'individual'}`,
-    `Category as tagged by seller: ${row.seller_category ?? '(untagged)'}`,
-    `Has images: ${row.image_count > 0} (${row.image_count})`,
-    '',
-    'Description:',
-    truncate(row.description ?? '(empty)', 1500),
-  ].join('\n');
+def listing_state(row) -> dict:
+    return {
+        "title": row.title,
+        "price_usd": round(row.price_cents / 100, 2) if row.price_cents else None,
+        "seller_type": "business" if row.seller_is_business else "individual",
+        "seller_tagged_category": row.seller_category or "(untagged)",
+        "image_count": row.image_count,
+        "description": truncate(row.description or "(empty)", 1200),
+    }
+```
+
+## Step 2: Ask every field in one request, many rows concurrently
+
+```python title="questions.py"
+from systemone import Choice, Noul
+
+QUESTIONS = {
+    "category": Choice("Which category is this listing?", {
+        "electronics": None, "clothing": None, "home_garden": "Furniture, decor, tools, garden",
+        "vehicles": None, "services": "Work offered, not goods", "other": None,
+    }),
+    "prohibited": Noul("Does this listing offer something prohibited, such as weapons, drugs or counterfeits?"),
 }
+AUTO, FLOOR = 0.90, 0.55
 ```
 
-## Step 2: Batch with checkpointing
+At pipeline scale the job will fail partway through, so design for resuming from the start:
 
-At pipeline scale, the job will fail partway through. Design for resumption from the start.
+```python title="pipeline.py"
+import asyncio
+from systemone import AsyncClient
 
-```javascript title="pipeline.js"
-const BATCH_SIZE = 256;
-const CONCURRENCY = 8;
+async def classify_listings(rows_after, checkpoint, batch=512, concurrency=16):
+    cursor = checkpoint.read()
+    sem = asyncio.Semaphore(concurrency)
+    async with AsyncClient("http://localhost:8093", timeout=10) as client:
 
-const CATEGORIES = [
-  'electronics', 'clothing', 'home_garden', 'vehicles',
-  'services', 'prohibited', 'other',
-];
+        async def one(row):
+            async with sem:
+                return row, await client.system_one(state=listing_state(row), questions=QUESTIONS)
 
-const AUTO = 0.90;
-const FLOOR = 0.55;
-
-export async function classifyListings({ since, checkpoint }) {
-  let cursor = await checkpoint.read();
-  let processed = 0;
-
-  for await (const batch of streamRows({ since, after: cursor, size: BATCH_SIZE * CONCURRENCY })) {
-    const chunks = chunk(batch, BATCH_SIZE);
-
-    const results = (
-      await Promise.all(
-        chunks.map(async (rows) => {
-          const decisions = await jev.evaluateBatch({
-            inputs: rows.map(serializeListing),
-            categories: CATEGORIES,
-          });
-          return rows.map((row, i) => ({ row, decision: decisions[i] }));
-        }),
-      )
-    ).flat();
-
-    await writeResults(results);
-
-    cursor = batch.at(-1).id;
-    await checkpoint.write(cursor);   // after the write, never before
-    processed += results.length;
-
-    metrics.increment('pipeline.rows', results.length);
-  }
-
-  return { processed, cursor };
-}
+        while rows := rows_after(cursor, limit=batch):
+            results = await asyncio.gather(*(one(r) for r in rows))
+            write_results(results)
+            cursor = rows[-1].id
+            checkpoint.write(cursor)          # after the write, never before
+            metrics.increment("pipeline.rows", len(results))
 ```
 
-The checkpoint write must come *after* the result write. Reversed, a crash between the two
-silently drops a batch — the worst kind of data bug, because nothing errors.
+The checkpoint write must come *after* the result write. The other way round, a crash between the two
+silently drops a batch: the worst kind of data bug, because nothing errors.
 
-## Step 3: Split on confidence
+**Throughput:** a Kenning server answers requests one at a time on its GPU, so plan on roughly 1000 ms
+divided by your per-request latency, per GPU: Kenning measured 12–26 items a second on one RTX 3090,
+depending on state length. Run more
+Kenning replicas, and point the pipeline at them round-robin, to go faster.
 
-```javascript title="write-results.js"
-async function writeResults(results) {
-  const confident = [];
-  const review = [];
-  const quarantine = [];
+## Step 3: Split on probability, and keep it
 
-  for (const { row, decision } of results) {
-    const record = {
-      row_id: row.id,
-      category: decision.category,
-      confidence: decision.confidence,
-      scores: decision.scores,               // keep the full distribution
-      serializer_version: SERIALIZER_VERSION,
-      classified_at: new Date().toISOString(),
-    };
+```python title="write_results.py"
+def write_results(results):
+    confident, review, quarantine = [], [], []
+    for row, r in results:
+        c = r.choices["category"]
+        p = c.probabilities[c.choice]
+        record = {
+            "row_id": row.id,
+            "category": c.choice,
+            "category_probability": p,
+            "category_probabilities": c.probabilities,      # keep the full distribution
+            "prohibited_probability": r.nouls["prohibited"].noul,
+            "model": r.model,
+            "state_version": STATE_VERSION,
+        }
+        (confident if p >= AUTO else review if p >= FLOOR else quarantine).append(record)
+        metrics.histogram("pipeline.probability", p, tags={"category": c.choice})
 
-    if (decision.confidence >= AUTO) confident.push(record);
-    else if (decision.confidence >= FLOOR) review.push(record);
-    else quarantine.push(record);
-
-    metrics.histogram('pipeline.confidence', decision.confidence, {
-      category: decision.category,
-    });
-  }
-
-  await Promise.all([
-    db.batchInsert('listing_features', confident),
-    db.batchInsert('review_queue', review),
-    db.batchInsert('quarantine', quarantine),
-  ]);
-}
+    db.batch_insert("listing_features", confident)
+    db.batch_insert("review_queue", review)
+    db.batch_insert("quarantine", quarantine)
 ```
 
-**Store the confidence in the warehouse.** This is the part teams regret skipping. Downstream
-consumers get to choose their own bar:
+**Store the probability in the warehouse.** This is the part teams regret skipping. Downstream consumers
+get to choose their own bar:
 
 ```sql
 -- A dashboard can be permissive.
 SELECT category, count(*) FROM listing_features GROUP BY 1;
 
--- A billing job cannot.
-SELECT * FROM listing_features WHERE confidence >= 0.98;
+-- A billing job can't.
+SELECT * FROM listing_features WHERE category_probability >= 0.98;
 ```
 
-Store `scores` too. When you later discover `electronics` and `home_garden` are constantly
-confused, the full distribution is what tells you — and it is not recoverable after the fact
-without re-running the whole job.
+Store the full distribution too. When you later find `electronics` and `home_garden` constantly confused,
+the distribution is what tells you, and it can't be recovered without re-running the whole job.
 
 ## Step 4: Feed the review queue back
 
-The mid-confidence band is not just a dumping ground. It is the highest-value labelled data you
-will ever get, because every row in it is one the model found genuinely hard.
+The middle band isn't a dumping ground. It's the most valuable labelled data you'll ever get, because
+every row in it is one the model found genuinely hard.
 
-```javascript title="review.js"
-export async function nextForReview(reviewerId, limit = 25) {
-  // Least confident first — most information gained per minute of human attention.
-  return db.query(
-    `SELECT r.*, l.title, l.description
-       FROM review_queue r
-       JOIN listings l ON l.id = r.row_id
-      WHERE r.reviewed_at IS NULL
-      ORDER BY r.confidence ASC
-      LIMIT $1`,
-    [limit],
-  );
-}
-
-export async function submitReview({ rowId, correctCategory, reviewerId }) {
-  await db.transaction(async (tx) => {
-    await tx.query(
-      `UPDATE review_queue
-          SET reviewed_at = now(), reviewer_id = $2, corrected_category = $3
-        WHERE row_id = $1`,
-      [rowId, reviewerId, correctCategory],
-    );
-
-    await tx.query(
-      `INSERT INTO listing_features (row_id, category, confidence, source)
-       VALUES ($1, $2, 1.0, 'human')
-       ON CONFLICT (row_id) DO UPDATE
-         SET category = EXCLUDED.category, confidence = 1.0, source = 'human'`,
-      [rowId, correctCategory],
-    );
-  });
-}
+```sql
+-- Least certain first: the most information per minute of human attention.
+SELECT r.*, l.title, l.description
+  FROM review_queue r JOIN listings l ON l.id = r.row_id
+ WHERE r.reviewed_at IS NULL
+ ORDER BY r.category_probability ASC
+ LIMIT 25;
 ```
 
-Those human labels are your calibration set. Run the
-[calibration check](/concepts/calibrated-confidence/#verifying-calibration-yourself) against them
-monthly — you get drift detection for free from work you were already doing.
+Those human labels do two jobs:
+
+- **Calibration check.** Run the [calibration check](/concepts/calibrated-confidence/#verifying-calibration-yourself)
+  against them monthly. That's drift detection for free, from work you were already doing.
+- **Training data.** Write them as System One training rows (`{state, questions, targets}`, one JSON
+  object per line; the format is in the Kenning docs) and fine-tune Kenning on your own data with
+  SystemOne Builder. Hard examples are worth far more than easy ones.
 
 ## Cost control at scale
 
 Three levers, in order of effect:
 
-**1. Deduplicate before classifying.** Real datasets are full of repeats — template listings,
-copy-pasted descriptions, bot-generated content. Hash first:
+**1. Deduplicate before asking.** Real datasets are full of repeats: template listings, copy-pasted
+descriptions, bot content. Answers are deterministic, so one answer serves every duplicate:
 
-```javascript
-const byHash = new Map();
-for (const row of rows) {
-  const h = sha256(serializeListing(row));
-  (byHash.get(h) ?? byHash.set(h, []).get(h)).push(row);
-}
+```python
+import hashlib, json
+from collections import defaultdict
 
-const decisions = await jev.evaluateBatch({
-  inputs: [...byHash.keys()].map((h) => inputFor(h)),
-  categories: CATEGORIES,
-});
-// Fan the decision back out to every row sharing the hash.
+groups = defaultdict(list)
+for row in rows:
+    key = hashlib.sha256(json.dumps(listing_state(row), sort_keys=True).encode()).hexdigest()
+    groups[key].append(row)
+# Ask once per key, then fan the answer out to every row in the group.
 ```
 
-On listing and review data this alone routinely cuts volume by a third or more.
+**2. Filter before asking.** Rows with an empty description and no images don't need a model. Filter them
+in SQL.
 
-**2. Gate cheaply before deciding expensively.** Rows with an empty description and no images do
-not need a model. Filter them in SQL.
-
-**3. Classify incrementally.** Only new and changed rows, driven by `updated_at`. Full
-reclassification is for serializer or model version changes — and when you do it, write to a new
-column and compare before cutting over.
+**3. Process incrementally.** Only new and changed rows, driven by `updated_at`. Full re-runs are for state
+or model version changes, and when you do one, write to a new column and compare before cutting over.
 
 ## Backfills
 
-```javascript title="backfill.js"
-// Write to a shadow column, compare, then cut over. Never classify in place.
-await classifyListings({
-  since: '1970-01-01',
-  target: 'listing_features_v3',
-  checkpoint: fileCheckpoint('.backfill-v3.cursor'),
-});
+Write to a shadow table, compare, then cut over. Never overwrite in place:
 
-// Where do old and new disagree, and which is right?
-const drift = await db.query(`
-  SELECT a.category AS old, b.category AS new, count(*) AS n
-    FROM listing_features a
-    JOIN listing_features_v3 b USING (row_id)
-   WHERE a.category <> b.category
-   GROUP BY 1, 2
-   ORDER BY n DESC
-   LIMIT 20
-`);
+```sql
+-- Where do the old and new runs disagree, and which is right?
+SELECT a.category AS old, b.category AS new, count(*) AS n
+  FROM listing_features a
+  JOIN listing_features_v3 b USING (row_id)
+ WHERE a.category <> b.category
+ GROUP BY 1, 2
+ ORDER BY n DESC
+ LIMIT 20;
 ```
 
-Sample 100 rows from the largest disagreement buckets and check them by hand before cutting
-over. A serializer change that improves the average while destroying one category is easy to
-ship and hard to notice.
+Check 100 rows from the largest disagreement buckets by hand before cutting over. A change that improves
+the average while wrecking one category is easy to ship and hard to notice.
 
 ## Next
 
-- [Structured State Ingestion](/cookbook/structured-state-ingestion/) — get step 1 right
-- [Moderation & Triage](/projects/moderation-triage/) — the same shape, with humans in the loop
+- [Structured state](/cookbook/structured-state-ingestion/): get step 1 right
+- [Moderation & triage](/projects/moderation-triage/): the same shape, with people in the loop

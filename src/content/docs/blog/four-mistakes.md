@@ -1,55 +1,62 @@
 ---
-title: The Four Mistakes Every System 1 Codebase Makes First
-description: Confidence checks in the wrong place, thresholds from vibes, no escape category, and no drift monitoring.
-date: 2026-09-14T12:00:00Z
+title: The Four Mistakes Every System One Codebase Makes First
+description: Uncertainty folded into the wrong branch, thresholds from vibes, no escape option, and no drift monitoring.
+date: 2026-10-03T12:00:00Z
 authors:
   - maintainers
-excerpt: Reviewing decision-native integrations, the same four bugs show up almost every time. All four are cheap to fix on day one and expensive to fix in month six.
+excerpt: The same four bugs show up in almost every System One integration. All four are cheap to fix on day one and expensive to fix in month six.
 tags: [patterns, production]
 ---
 
-Reviewing decision-native integrations, four bugs show up over and over. They are not subtle
-once you know to look, and all four are cheap to fix at the start and painful to fix once
-you have six months of data written under them.
+Four bugs show up over and over in System One integrations. They aren't subtle once you know to look,
+and all four are cheap to fix at the start and painful to fix once six months of data has been written
+under them.
 
-## 1. Gating on confidence in the wrong place
+## 1. Folding uncertainty into the wrong branch
 
-The most common, and the only one on this list that is a straightforward correctness bug:
+The most common, and the only one on this list that's a straightforward correctness bug:
 
-```javascript
-// The bug.
-if (decision.category === 'fraud' && decision.confidence > 0.95) {
-  blockTransaction();
-} else {
-  allowTransaction();
-}
+```python
+# The bug.
+if r.nouls["fraud"].noul > 0.95:
+    block_transaction()
+else:
+    allow_transaction()
 ```
 
-A decision of `{ category: 'fraud', confidence: 0.94 }` — the model saying *"this is very
-probably fraud"* — falls through to `allowTransaction()`.
+A fraud probability of `0.94`, the model saying *"this is very probably fraud"*, falls through to
+`allow_transaction()`.
 
-The `else` branch has silently become a bucket for two opposite situations: "confidently fine"
-and "alarmingly uncertain." The second one is now indistinguishable from the first in your logs.
+The `else` branch has silently become a bucket for two opposite situations: "confidently fine" and
+"alarmingly uncertain". In your logs, the second is now indistinguishable from the first.
 
-```javascript
-// The fix: uncertainty is its own outcome, checked first.
-if (decision.confidence < 0.95) return manualReview(transaction, decision);
-return decision.category === 'fraud' ? blockTransaction() : allowTransaction();
+```python
+# The fix: uncertainty is its own outcome, with a threshold on each side.
+p = r.nouls["fraud"].noul
+if p >= 0.95:
+    block_transaction()
+elif p <= 0.02:
+    allow_transaction()
+else:
+    manual_review(transaction, p)
 ```
 
-**Rule: gate on confidence, then branch on category.** Never the reverse, never combined in one
-condition. More on this in
+**Rule: a yes/no answer needs two thresholds, and the middle is a real outcome.** More in
 [the fuzzy if-statement](/cookbook/fuzzy-if-statement/#the-ordering-mistake).
+
+A close cousin: gating on a choice's `confidence` field. In the System One format, `confidence`
+measures how far the winner stands above an even guess. It isn't the winner's probability. Gate on
+`probabilities[choice]` ([why](/concepts/calibrated-confidence/#reading-an-answer)).
 
 ## 2. Thresholds chosen because they sound responsible
 
-`0.95` appears in almost every codebase, and almost nobody can say why. It is not derived from
-anything. It sounds careful.
+`0.95` appears in almost every codebase, and almost nobody can say why. It isn't derived from anything.
+It just sounds careful.
 
 The actual arithmetic is one line:
 
 ```text
-automate when   confidence > cost_of_error / (value_of_automating + cost_of_error)
+automate when   p > cost_of_error / (value_of_automating + cost_of_error)
 ```
 
 Which gives very different numbers depending on what the decision *does*:
@@ -61,74 +68,73 @@ Which gives very different numbers depending on what the decision *does*:
 | Block an IP | 100 | **0.99** |
 | Delete user content | 500 | **0.998** |
 
-Two useful consequences. First, plenty of low-stakes decisions should be automated at `0.6` —
-teams routinely leave easy wins on the table by applying a blanket 0.95. Second, if the
-arithmetic demands `0.998` and your model tops out at `0.97`, **that decision is not automatable
-yet**, and knowing that is worth more than a threshold that pretends otherwise.
+Two useful consequences. First, plenty of low-stakes decisions should be automated at `0.6`: teams leave
+easy wins on the table with a blanket 0.95. Second, if the arithmetic demands `0.998` and your model
+rarely gets there, **that decision isn't automatable yet**, and knowing that is worth more than a
+threshold that pretends otherwise.
 
-## 3. No escape category
+## 3. No escape option
 
-```javascript
-categories: ['billing', 'technical', 'account']
+```python
+Choice("Which team?", {"billing": None, "technical": None, "account": None})
 ```
 
-The model must return one of these. When a message arrives that is none of them — a legal
-threat, a partnership enquiry, a language you do not support — it returns the nearest one. Often
-with high confidence, because relative to the other two options it really is the best fit.
+The model has to return one of these. When a message is none of them (a legal threat, a partnership
+enquiry, a language you don't support) it returns the nearest one. Often with high probability, because
+relative to the other two options it really is the best fit.
 
-Your confidence-based safety net does not catch this. The number is high. The answer is wrong.
+Your probability safety net doesn't catch this. The number is high. The answer is wrong.
 
-```javascript
-categories: ['billing', 'technical', 'account', 'other']
+```python
+Choice("Which team?", {"billing": None, "technical": None, "account": None,
+                       "other": "Anything that fits none of the above"})
 ```
 
-Then alert on `other` as a share of traffic. A rising `other` rate is the earliest signal your
-taxonomy has drifted out of date — it moves weeks before accuracy visibly degrades.
+Then alert on `other` as a share of traffic. A rising `other` rate is the earliest signal that your
+options have drifted out of date: it moves weeks before accuracy visibly degrades.
 
-## 4. Monitoring uptime instead of distribution
+## 4. Monitoring uptime instead of the distribution
 
-Almost everyone monitors: request count, error rate, p99 latency. Almost nobody monitors the
-thing that actually fails.
+Almost everyone monitors request count, error rate and p99 latency. Almost nobody monitors the thing
+that actually fails.
 
-Decision models degrade *silently*. Calibration drifts when your input distribution shifts — a
-new market, a new product surface, an adversary adapting. The model keeps returning
-well-formed, structurally valid, confidently-scored answers. Your dashboards stay green. The
-answers get worse.
+System One models degrade *silently*. Calibration drifts when your inputs shift: a new market, a new
+product surface, an adversary adapting. The model keeps returning well-formed answers with plausible
+probabilities. Your dashboards stay green. The answers get worse.
 
 Four signals worth alerting on:
 
-```javascript
-metrics.histogram('decision.confidence', decision.confidence, { category: decision.category });
-metrics.increment('decision.category', { category: decision.category });
-metrics.increment('decision.below_floor');
-metrics.increment('decision.degraded');   // fallbacks taken
+```python
+metrics.histogram("decision.probability", p, tags={"choice": d.choice})
+metrics.increment("decision.choice", tags={"choice": d.choice})
+metrics.increment("decision.below_floor")
+metrics.increment("decision.degraded")        # fallbacks taken
 ```
 
 | Signal | What a move means |
 | :--- | :--- |
-| Mean confidence falling | Input distribution shifted — re-verify calibration |
-| Category mix shifting | Either the world changed or your serializer did |
-| `below_floor` rate rising | Real inputs your categories do not cover |
-| `degraded` rate above zero | You are silently running on fallbacks |
+| Winning probability falling | Your inputs shifted: re-check calibration |
+| Answer mix shifting | Either the world changed, or your state builder did |
+| `below_floor` rate rising | Real inputs your options don't cover |
+| `degraded` rate above zero | You're silently running on fallbacks |
 
-That last one deserves its own alert. A timeout fallback that quietly returns `allow` on every
-request, while error rate stays at zero because you handled the exception, is the failure mode
-that does the most damage before anyone notices.
+That last one deserves its own alert. A timeout fallback that quietly allows every request, while the
+error rate stays at zero because you handled the exception, is the failure that does the most damage
+before anyone notices.
 
-And beyond metrics: **sample and read the decisions.** Fifty a week, by hand. Every team that
-has been burned here says the same sentence afterwards — the dashboards looked fine.
+Beyond metrics, **sample and read the decisions**: fifty a week, by hand. Every team that has been
+burned here says the same thing afterwards: the dashboards looked fine.
 
 ## The pattern behind all four
 
-Each of these is the same mistake in a different costume: **treating the confidence score as
-decoration rather than as the primary output.**
+Each of these is the same mistake in a different costume: **treating the probability as decoration
+instead of as the primary output.**
 
-If you internalise one thing, make it this. The category is just `argmax`. The confidence — and
-the full distribution behind it — is what makes the model safe to build on. Code that ignores it
-is code that has thrown away the only thing distinguishing a decision model from a very fast
-guess.
+If you take one thing away, make it this. The chosen option is just the most likely one. The
+probabilities behind it are what make the model safe to build on. Code that ignores them has thrown away
+the only thing that separates a decision model from a very fast guess.
 
 ---
 
-Further reading: [Understanding Calibrated Confidence](/concepts/calibrated-confidence/) and
-[The Fuzzy If-Statement](/cookbook/fuzzy-if-statement/).
+Further reading: [Understanding calibrated confidence](/concepts/calibrated-confidence/) and
+[The fuzzy if-statement](/cookbook/fuzzy-if-statement/).

@@ -4,7 +4,8 @@ import starlight from '@astrojs/starlight';
 import starlightBlog from 'starlight-blog';
 
 const SITE = 'https://systemone.dev';
-const GITHUB = 'https://github.com/systemone-dev/systemone.dev';
+const GITHUB = 'https://github.com/systemonedev/systemone.dev'; // this site's source (Edit page links)
+const BUILDER = 'https://github.com/systemonedev/systemone-builder';
 
 export default defineConfig({
   site: SITE,
@@ -12,7 +13,7 @@ export default defineConfig({
     starlight({
       title: 'SystemOne.dev',
       description:
-        'The community hub for decision-native AI: typed outputs, calibrated confidence, 70ms workflows, zero hallucinations.',
+        'The open community hub for System One decision models: typed questions in, calibrated answers out, in milliseconds. Learn, build and benchmark with Kenning, Clef and Jev.',
       logo: {
         light: './src/assets/logo-light.svg',
         dark: './src/assets/logo-dark.svg',
@@ -24,8 +25,8 @@ export default defineConfig({
       lastUpdated: true,
       pagination: true,
       social: [
-        { icon: 'github', label: 'GitHub', href: GITHUB },
-        { icon: 'discord', label: 'Discord', href: 'https://discord.gg/systemone' },
+        { icon: 'github', label: 'GitHub', href: BUILDER },
+        { icon: 'comment', label: 'Discussions', href: `${BUILDER}/discussions` },
         { icon: 'rss', label: 'RSS', href: `${SITE}/blog/rss.xml` },
       ],
       plugins: [
@@ -35,9 +36,9 @@ export default defineConfig({
           recentPostCount: 5,
           authors: {
             maintainers: {
-              name: 'SystemOne Maintainers',
-              title: 'Community stewards',
-              url: GITHUB,
+              name: 'SystemOne maintainers',
+              title: 'systemonedev',
+              url: 'https://github.com/systemonedev',
             },
           },
         }),
@@ -50,7 +51,8 @@ export default defineConfig({
           items: [
             { label: 'Welcome', link: '/start/' },
             { label: 'Quickstart: your first decision', link: '/start/quickstart/' },
-            { label: 'Is System 1 right for my problem?', link: '/start/when-to-use/' },
+            { label: 'Is System One right for my problem?', link: '/start/when-to-use/' },
+            { label: 'Engines: Kenning, Clef, Jev', link: '/start/engines/' },
           ],
         },
         {

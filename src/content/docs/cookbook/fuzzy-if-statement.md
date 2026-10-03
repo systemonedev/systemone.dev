@@ -1,208 +1,188 @@
 ---
 title: The "Fuzzy" If-Statement
-description: Routing logic built on confidence bands — the foundational System 1 code pattern.
+description: Routing logic built on probability bands, the foundational System One code pattern.
 sidebar:
   label: The Fuzzy If-Statement
   order: 1
 ---
 
-Every System 1 integration is, at bottom, one pattern: a typed decision, a confidence gate, and
-a branch. Get the shape right once and every subsequent integration is a variation.
+Every System One integration is, at bottom, one pattern: a typed answer, a probability gate, and a
+branch. Get the shape right once and every later integration is a variation.
 
 ## The pattern
 
-```javascript title="fuzzy-if.js"
-const decision = await jev.evaluate({
-  input: rawState,
-  categories: ['approve', 'reject', 'review'],
-});
+```python title="fuzzy_if.py"
+from systemone import Client, Choice
 
-// 1. Gate on confidence FIRST.
-if (decision.confidence < THRESHOLD) {
-  return escalate(rawState, decision);
-}
+client = Client("http://localhost:8093")
+r = client.system_one(state=application, questions={
+    "decision": Choice("What should happen to this application?",
+                       {"approve": None, "reject": None, "review": None}),
+})
+d = r.choices["decision"]
 
-// 2. Then branch on category.
-switch (decision.category) {
-  case 'approve': return approve();
-  case 'reject':  return reject();
-  case 'review':  return queueForReview();
-}
+# 1. Gate on the winner's probability FIRST.
+if d.probabilities[d.choice] < THRESHOLD:
+    return escalate(application, d)
+
+# 2. Then branch on the answer.
+match d.choice:
+    case "approve": return approve()
+    case "reject":  return reject()
+    case "review":  return queue_for_review()
 ```
 
 ## The ordering mistake
 
-This is the single most common bug in new System 1 code:
+This is the most common bug in new System One code:
 
-```javascript title="wrong.js"
-// WRONG — the confidence check is trapped inside one branch.
-if (decision.category === 'fraud' && decision.confidence > 0.95) {
-  blockTransaction();
-} else {
-  allowTransaction();   // a 0.94-confidence fraud signal silently becomes "allow"
-}
+```python title="wrong.py"
+# WRONG: the uncertainty is folded into the "allow" branch.
+if r.nouls["fraud"].noul > 0.95:
+    block_transaction()
+else:
+    allow_transaction()     # a 0.94 fraud signal silently becomes "allow"
 ```
 
-A decision of `{ category: 'fraud', confidence: 0.94 }` — a strong fraud signal — falls into
-`else` and gets approved. The `else` branch has quietly become a dumping ground for *both*
-"confidently fine" and "alarmingly uncertain," which are opposite situations.
+A fraud probability of `0.94`, a strong signal, falls into `else` and gets approved. The `else`
+branch has quietly become a dumping ground for *both* "confidently fine" and "alarmingly uncertain",
+which are opposite situations.
 
-```javascript title="right.js"
-// RIGHT — uncertainty is its own branch, evaluated before category.
-if (decision.confidence < 0.95) {
-  return manualReview(transaction, decision);  // 0.94 fraud lands here
-}
-return decision.category === 'fraud' ? blockTransaction() : allowTransaction();
+```python title="right.py"
+# RIGHT: uncertainty is its own branch, with a threshold on each side.
+p = r.nouls["fraud"].noul
+if p >= 0.95:
+    block_transaction()
+elif p <= 0.02:
+    allow_transaction()
+else:
+    manual_review(transaction, p)          # 0.94 lands here
 ```
 
-**Rule: uncertainty is a first-class outcome, not a modifier on another outcome.**
+**Rule: uncertainty is a first-class outcome, not a modifier on another outcome.** A noul needs two
+thresholds: one to act on yes, one to act on no.
 
 ## Three bands
 
-Two bands (automate / escalate) is the minimum. Three is better, because "uncertain" and
-"nothing fits" need different handling:
+Two bands (automate or escalate) is the minimum. Three is better, because "uncertain" and "nothing
+fits" need different handling:
 
-```javascript title="three-band.js"
-const BANDS = {
-  AUTO: 0.95,   // derived from cost of error — see /concepts/calibrated-confidence/
-  FLOOR: 0.60,  // below this the model is signalling "I have no idea"
-};
+```python title="three_band.py"
+AUTO = 0.95    # derived from your cost of error: see /concepts/calibrated-confidence/
+FLOOR = 0.60   # below this the model is signalling "none of these fit well"
 
-export async function route(item) {
-  const decision = await jev.evaluate({
-    input: serialize(item),
-    categories: CATEGORIES,
-  });
+def route(item):
+    r = client.system_one(state=item, questions={"route": Choice("Where should this go?", OPTIONS)})
+    d = r.choices["route"]
+    p = d.probabilities[d.choice]
+    metrics.histogram("decision.probability", p, tags={"choice": d.choice})
 
-  metrics.histogram('decision.confidence', decision.confidence, {
-    category: decision.category,
-  });
+    if p >= AUTO:
+        return {"action": ACTIONS[d.choice], "automated": True, "answer": d}
+    if p >= FLOOR:
+        return {"action": "human_review", "automated": False, "answer": d}
+    # Not a hard case: probably an input your options don't cover.
+    metrics.increment("decision.below_floor", tags={"choice": d.choice})
+    return {"action": "triage", "automated": False, "answer": d, "reason": "below_floor"}
+```
 
-  if (decision.confidence >= BANDS.AUTO) {
-    return { action: ACTIONS[decision.category], decision, automated: true };
-  }
+## Per-answer thresholds
 
-  if (decision.confidence >= BANDS.FLOOR) {
-    return { action: 'human_review', decision, automated: false };
-  }
+Cost of error is rarely uniform. Wrongly approving a refund isn't the same as wrongly denying one.
+Encode that:
 
-  // Not a hard case — likely an input your categories do not cover.
-  metrics.increment('decision.below_floor', { category: decision.category });
-  return { action: 'triage', decision, automated: false, reason: 'below_floor' };
+```python title="thresholds.py"
+# Asymmetric by design: destructive actions need more certainty than safe ones.
+THRESHOLDS = {
+    "block": 0.99,        # a false positive blocks a legitimate user
+    "quarantine": 0.95,
+    "flag": 0.85,
+    "allow": 0.80,        # the safe default; a mistake here costs little
+}
+DEFAULT_THRESHOLD = 0.95
+
+def is_automatable(d) -> bool:
+    return d.probabilities[d.choice] >= THRESHOLDS.get(d.choice, DEFAULT_THRESHOLD)
+```
+
+Keep these in config, not scattered through the codebase. You'll tune them, and you want the diff to
+be one file.
+
+## Always include an escape option
+
+If reality contains a case your list doesn't, the model still has to pick one of yours, often with
+misleadingly high probability. Give it somewhere to go:
+
+```python
+OPTIONS = {
+    "billing_question": "Charges, refunds, invoices",
+    "technical_issue": "Bugs, errors, outages",
+    "account_access": "Logins, passwords, permissions",
+    "other": "Anything that fits none of the above",   # the escape hatch
 }
 ```
 
-## Per-category thresholds
+Then alert on its share of traffic. A rising `other` rate is the earliest signal that your options
+have drifted out of date, long before accuracy visibly drops.
 
-Cost of error is rarely uniform. Wrongly approving a refund is not the same as wrongly denying
-one. Encode that:
+## Ask everything at once
 
-```javascript title="thresholds.js"
-// Asymmetric by design: destructive actions need more certainty than safe ones.
-const THRESHOLDS = {
-  block:      0.99,  // false positive = a blocked legitimate user
-  quarantine: 0.95,
-  flag:       0.85,
-  allow:      0.80,  // the safe default; a false positive here costs little
-};
+With a generative model you'd chain calls: is it relevant? then what's the intent? With System One, ask
+every question in **one** request. They're answered in the same pass over the state, so two questions
+cost about the same as one. On Kenning (one RTX 3090), the request below takes 38 ms with both
+questions, 38 ms with one, and 76 ms as two separate requests:
 
-const DEFAULT_THRESHOLD = 0.95;
+```python title="pipeline.py"
+def handle_message(msg):
+    r = client.system_one(state={"message": msg.text, "channel": msg.channel}, questions={
+        "actionable": Noul("Does this message ask us to do something?"),
+        "intent": Choice("What does the sender want?", {
+            "refund": "Money back for a charge",
+            "bug_report": "Something is broken",
+            "feature_request": "Something new",
+            "other": None,
+        }),
+    })
+    if r.nouls["actionable"].noul <= 0.05:
+        return {"action": "drop"}
 
-function isAutomatable(decision) {
-  return decision.confidence >= (THRESHOLDS[decision.category] ?? DEFAULT_THRESHOLD);
-}
+    intent = r.choices["intent"]
+    if intent.probabilities[intent.choice] < 0.9:
+        return {"action": "human_review", "intent": intent}
+
+    # The expensive generative path, now taken rarely (seconds).
+    if intent.choice == "bug_report":
+        return {"action": "draft_reply", "body": llm.chat(msg.text)}
+    return {"action": ROUTES[intent.choice]}
 ```
 
-Keep these in config, not scattered through the codebase. You will tune them, and you want the
-diff to be one file.
-
-## Always include an escape category
-
-If reality contains a case your list does not, the model must still pick one of yours — often
-with misleadingly high confidence. Give it somewhere to go:
-
-```javascript
-const CATEGORIES = [
-  'billing_question',
-  'technical_issue',
-  'account_access',
-  'other',            // the escape hatch
-];
-```
-
-Then alert on its share of traffic. A rising `other` rate is the earliest signal that your
-taxonomy has drifted out of date — long before accuracy visibly drops.
-
-## Composing decisions
-
-Chain cheap decisions before expensive work rather than asking one model one enormous question:
-
-```javascript title="pipeline.js"
-export async function handleMessage(msg) {
-  // Cheap gate: is this even actionable? (~70ms)
-  const relevance = await jev.evaluate({
-    input: msg.text,
-    categories: ['actionable', 'noise'],
-  });
-  if (relevance.category === 'noise' && relevance.confidence > 0.9) {
-    return { action: 'drop' };
-  }
-
-  // Narrower question, only for what survived. (~70ms)
-  const intent = await jev.evaluate({
-    input: msg.text,
-    categories: ['refund', 'bug_report', 'feature_request', 'other'],
-  });
-  if (intent.confidence < 0.9) return { action: 'human_review', intent };
-
-  // The expensive path, now taken rarely. (~2000ms)
-  if (intent.category === 'bug_report') {
-    return { action: 'draft_reply', body: await llm.chat({ /* ... */ }) };
-  }
-
-  return { action: ROUTES[intent.category] };
-}
-```
-
-Two 70ms calls that prevent one 2,000ms call is a good trade roughly every time.
+One fast call that prevents a slow one is a good trade almost every time.
 
 ## Testing it
 
-The nice property of this pattern: your routing logic is deterministic and testable in
-isolation. Test the routing with fixtures, and evaluate the model separately.
+The nice property of this pattern: your routing logic is deterministic and testable in isolation.
+Test the routing with fixtures, and evaluate the model separately.
 
-```javascript title="route.test.js"
-import { describe, it, expect } from 'vitest';
-import { classify } from './route.js';
+```python title="test_route.py"
+from systemone import NoulAnswer
+from route import decide          # decide(fraud: NoulAnswer) -> str, no model call inside
 
-const d = (category, confidence) => ({ category, confidence });
+def test_automates_above_the_threshold():
+    assert decide(NoulAnswer(0.99)) == "block"
 
-describe('routing bands', () => {
-  it('automates above the threshold', () => {
-    expect(classify(d('fraud', 0.99)).action).toBe('block');
-  });
+def test_escalates_a_strong_but_uncertain_signal():
+    # The regression test for the ordering bug above.
+    assert decide(NoulAnswer(0.94)) == "manual_review"
 
-  it('escalates a high-signal but sub-threshold decision', () => {
-    // The regression test for the ordering bug above.
-    expect(classify(d('fraud', 0.94)).action).toBe('human_review');
-  });
-
-  it('triages below the floor', () => {
-    expect(classify(d('fraud', 0.4)).action).toBe('triage');
-  });
-
-  it('never auto-approves on an uncertain fraud signal', () => {
-    for (let c = 0; c < 0.95; c += 0.01) {
-      expect(classify(d('fraud', c)).action).not.toBe('allow');
-    }
-  });
-});
+def test_never_allows_an_uncertain_fraud_signal():
+    for p in (x / 100 for x in range(3, 95)):
+        assert decide(NoulAnswer(p)) != "allow"
 ```
 
-Note that `classify` takes a decision object rather than calling the model. Keep the model call
-at the edge and the branching pure — you get fast tests and a function you can reason about.
+`decide` takes an answer object rather than calling the model. Keep the model call at the edge and the
+branching pure: you get fast tests and a function you can reason about.
 
 ## Next
 
-- [Handling the 70ms Loop](/cookbook/the-70ms-loop/) — keeping the call itself fast
-- [Structured State Ingestion](/cookbook/structured-state-ingestion/) — what to put in `input`
+- [The fast loop](/cookbook/the-70ms-loop/): keeping the call itself fast
+- [Structured state](/cookbook/structured-state-ingestion/): what to put in `state`

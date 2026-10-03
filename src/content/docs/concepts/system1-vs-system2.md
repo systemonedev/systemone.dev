@@ -1,148 +1,137 @@
 ---
-title: 'System 1 vs. System 2 AI: A Mental Model for Developers'
-description: Fast reflexes versus slow deliberation — the architectural split every AI developer needs to understand.
+title: 'System One vs. System Two AI: A Mental Model for Developers'
+description: Fast reflexes versus slow deliberation, the architectural split every AI developer needs to understand.
 sidebar:
-  label: System 1 vs. System 2
+  label: System One vs. System Two
   order: 1
 ---
 
-For the last few years, the AI industry has been obsessed with building a better brain. We got
-models that can pass the bar exam, write poetry, and reason through complex logic puzzles.
+For the last few years, the AI industry has been obsessed with building a better brain. We got models
+that pass the bar exam, write poetry and reason through logic puzzles.
 
-But as developers, we quickly realized a painful truth: **we don't always need a brain. Most of
-the time, we just need a reflex.**
+But as developers, we quickly learned a painful truth: **we don't always need a brain. Most of the
+time, we need a reflex.**
 
-Borrowing from Daniel Kahneman's *Thinking, Fast and Slow*, the AI landscape is officially
-splitting into two distinct architectures. If you want to build reliable, production-grade AI
-workflows, you need to understand the difference between System 1 and System 2 AI.
+Borrowing from Daniel Kahneman's *Thinking, Fast and Slow*, AI systems are splitting into two kinds.
+To build reliable AI workflows, you need to know which one you're holding.
 
-## The Problem: We're Using System 2 for Everything
+## The problem: we're using System Two for everything
 
-Generative models like GPT-4 and Claude are **System 2** AI. They are designed for slow,
-deliberate, step-by-step reasoning.
+Generative models (large language models) are **System Two** AI: built for slow, deliberate,
+step-by-step reasoning. Ask one a question and it writes the answer one token at a time. It's trained,
+largely on human feedback, to be helpful and conversational.
 
-When you ask a System 2 model a question, it generates the answer one token at a time. It uses
-Reinforcement Learning from Human Feedback (RLHF) to sound helpful and conversational.
+**The developer experience with System Two:**
 
-**The developer experience with System 2:**
+- **Latency:** seconds. You're waiting on a token stream.
+- **Output:** strings: Markdown, prose, or JSON you hope is formatted correctly.
+- **Failure mode:** hallucination. It generates strings, so it can generate strings that aren't true,
+  or aren't valid.
+- **Best for:** chat, pair programming, drafting, complex multi-step reasoning.
 
-- **Latency:** High (1 to 10+ seconds). You are waiting on token streams.
-- **Output:** Unstructured strings — Markdown, prose, or JSON that you pray is formatted correctly.
-- **Failure mode:** Hallucinations. Because it generates strings, it can generate strings that aren't true.
-- **Best for:** Chatbots, pair programming, drafting emails, complex multi-step reasoning.
-
-Trying to use a System 2 model for high-volume data routing, security firewalls, or real-time
-moderation is like hiring a philosophy professor to sort your mail. It's too slow, too
-expensive, and prone to overthinking.
+Using a System Two model for high-volume routing, security filtering or real-time moderation is like
+hiring a philosophy professor to sort your mail: too slow, too expensive, and prone to overthinking.
 
 ### What that actually costs you
 
-The cost is not only the API bill. It is the code you write around the model:
+The cost isn't only the API bill. It's the code you write around the model:
 
-```javascript title="the-tax-you-pay.js"
-const res = await llm.chat({
-  messages: [
-    {
-      role: 'system',
-      content: `You are a classifier. Respond with ONLY valid JSON matching
-                {"category": "a"|"b"|"c", "confidence": number}.
-                Do not include markdown fences. Do not explain.`,
-    },
-    { role: 'user', content: input },
-  ],
-  temperature: 0,
-});
+```python title="the_tax_you_pay.py"
+res = llm.chat(
+    messages=[
+        {"role": "system", "content": 'You are a classifier. Respond with ONLY valid JSON matching '
+                                      '{"category": "a"|"b"|"c", "confidence": number}. '
+                                      "Do not include markdown fences. Do not explain."},
+        {"role": "user", "content": text},
+    ],
+    temperature=0,
+)
+try:
+    parsed = json.loads(strip_fences(res.text))
+except json.JSONDecodeError:
+    parsed = retry_with_stricter_prompt(text)            # sometimes twice
 
-let parsed;
-try {
-  parsed = JSON.parse(stripFences(res.choices[0].message.content));
-} catch {
-  parsed = await retryWithStricterPrompt(input); // sometimes twice
-}
-
-if (!ALLOWED.includes(parsed?.category)) {
-  parsed = { category: 'unknown', confidence: 0 };  // it invented a fourth category again
-}
+if parsed.get("category") not in ALLOWED:
+    parsed = {"category": "unknown", "confidence": 0}    # it invented a fourth category again
 ```
 
-Every line after the API call exists to defend against the model's output format. None of it is
-business logic. And `parsed.confidence` is a number the model *wrote down* — it is not a
-measurement of anything.
+Every line after the API call defends against the model's output format. None of it is business
+logic. And `parsed["confidence"]` is a number the model *wrote down*. It isn't a measurement of
+anything.
 
-## The Solution: Machine-Native "System 1" AI
+## The solution: System One models
 
-System 1 AI is the reflex. Models like TypeSafe AI's Jev operate entirely differently under the
-hood. They give up token generation entirely in order to evaluate unstructured state and return
-typed, probabilistic decisions.
+A System One model is the reflex. It gives up token generation entirely: you give it your program's
+state and typed questions, and it scores every possible answer against that state in one pass,
+returning a probability for each. [Kenning](https://huggingface.co/systemonedev/kenning-large-v0.4)
+(open, 435M parameters) and Cloudflare's Clef (open, 9B) run on your own hardware. TypeSafe's Jev is
+a hosted one. [Compare them](/start/engines/).
 
-Instead of RLHF, they are trained using **Reinforcement Learning for Calibrated Decisions
-(RLCD)**. They evaluate context in parallel, not sequentially.
+They're trained for a different goal: a **well-calibrated probability**, not a helpful sentence. A
+model whose "0.9" is right about 90% of the time is a model you can put a threshold on.
+[How that training works](/concepts/how-models-are-trained/).
 
-**The developer experience with System 1:**
+**The developer experience with System One:**
 
-- **Latency:** Ultra-low (70 to 500 milliseconds).
-- **Output:** Strictly typed state and probability arrays.
-- **Failure mode:** Low confidence — it will tell you exactly how unsure it is — but zero
-  "hallucinations," because it cannot generate novel strings.
-- **Best for:** Agent guardrails, API routing, SOC alert triage, high-volume data pipelines.
+- **Latency:** tens to hundreds of milliseconds. Kenning answers in 33–88 ms per request on one
+  consumer GPU.
+- **Output:** typed answers, with a probability for every option.
+- **Failure mode:** being wrong or unsure, and telling you how unsure. It can't invent an answer
+  outside your options.
+- **Best for:** agent guardrails, request routing, alert triage, moderation, high-volume pipelines.
 
-## The Developer's Cheat Sheet
+## The developer's cheat sheet
 
-| Feature | System 2 (Generative) | System 1 (Decision-Native) |
+| | System Two (generative) | System One (decision) |
 | :--- | :--- | :--- |
-| **Examples** | GPT-4, Claude, Llama 3 | TypeSafe Jev |
-| **Primary output** | Streaming tokens (strings) | Typed JSON & probabilities |
-| **Latency** | 1,000ms – 15,000ms | 70ms – 500ms |
-| **Training focus** | RLHF (helpfulness / reasoning) | RLCD (calibration / accuracy) |
-| **Hallucination risk** | Moderate to high | Zero (by architectural design) |
-| **The code paradigm** | Prompt engineering | Strict `if/then` routing logic |
+| **Examples** | GPT, Claude, Llama, Qwen | Kenning, Clef, Jev |
+| **Output** | streaming tokens (strings) | typed answers and probabilities |
+| **Latency** | seconds | tens to hundreds of milliseconds |
+| **Trained for** | helpfulness and reasoning | calibrated probabilities |
+| **Malformed or invented output** | possible | impossible: always one of your options |
+| **Wrong answers** | possible | possible, with a probability you can act on |
+| **The code you write** | prompts and parsers | thresholds and `if` statements |
 
-## Stop Parsing. Start Routing.
+## Stop parsing. Start routing.
 
-The shift to System 1 AI means changing how you write code. You no longer need to write massive
-prompts begging the model to `ONLY RETURN VALID JSON AND NOTHING ELSE`.
+You no longer need prompts begging the model to `ONLY RETURN VALID JSON AND NOTHING ELSE`. You hand
+the model your data, ask typed questions, and get probabilities back. When the model is well
+calibrated on your data, and you [check that it is](/concepts/calibrated-confidence/), answers it gives
+at 0.98 are right about 98% of the time.
 
-With System 1, you feed the model raw data and ask it to categorize it. It returns a calibrated
-confidence score. If it returns `0.98` confidence, it is historically accurate 98% of the time.
+That lets you write ordinary deterministic code around your AI:
 
-This allows you to write actual deterministic code around your AI:
+```python title="the_system_one_paradigm.py"
+r = client.system_one(state={"request": raw_request},
+                      questions={"sqli": Noul("Is this request a SQL injection attempt?")})
 
-```javascript title="the-system-1-paradigm.js"
-const decision = await jev.evaluate({
-  input: rawLogData,
-  categories: ['sql_injection', 'safe_traffic'],
-});
-
-if (decision.confidence > 0.95 && decision.category === 'sql_injection') {
-  firewall.blockIP(request.ip);
-} else {
-  routeToHumanAnalyst(rawLogData);
-}
+if r.nouls["sqli"].noul >= 0.95:
+    firewall.block(request.ip)
+else:
+    route_to_analyst(raw_request)
 ```
 
-Read that block again and notice what is *missing*: no prompt, no parser, no retry, no
-validation of the category, no temperature. The model's output is already the shape your
-program needs.
+Read that block again and notice what's *missing*: no prompt, no parser, no retry, no validation of
+the answer, no temperature. The model's output is already the shape your program needs.
 
-## The part where we are honest with you
+## The part where we're honest with you
 
-This is a mental model, not a religion. Three caveats worth holding onto:
+This is a mental model, not a religion. Three caveats are worth holding onto:
 
-**System 2 is not going away, and should not.** Anything whose output is genuinely
-*generated* — a reply, a summary, a refactor — belongs to System 2. The argument here is about
-putting the right architecture in the right place.
+**System Two isn't going away, and shouldn't.** Anything whose output is genuinely *generated* (a
+reply, a summary, a refactor) belongs to System Two. The argument here is about putting each
+architecture where it fits.
 
-**"Zero hallucination" is a narrower claim than it sounds.** A model that can only return a
-label from your list cannot invent a fake citation. It can absolutely apply the wrong label.
-[We spell this out in detail](/concepts/zero-hallucination/) because overclaiming it is how
-teams get burned.
+**"No hallucination" is a narrower claim than it sounds.** A model that can only return one of your
+options can't invent a fake citation. It can absolutely pick the wrong option.
+[We spell this out](/concepts/zero-hallucination/), because overclaiming it is how teams get burned.
 
-**Calibration is a property you should verify, not assume.** It holds on the distribution the
-model was calibrated for. Point it at inputs unlike anything it has seen and the number drifts.
+**Calibration is a property to verify, not assume.** It holds on the distribution the model was
+calibrated for. Point it at inputs unlike anything it has seen and the numbers drift.
 [Measuring it yourself](/concepts/calibrated-confidence/) takes an afternoon and is worth it.
 
 ## Next
 
-- [RLCD vs. RLHF](/concepts/rlcd-vs-rlhf/) — why the training objective produces this behaviour
-- [The fuzzy if-statement](/cookbook/fuzzy-if-statement/) — the code pattern this enables
-- [Is System 1 right for my problem?](/start/when-to-use/) — an honest decision tree
+- [The wire format](/concepts/wire-format/): exactly what you send and get back
+- [The fuzzy if-statement](/cookbook/fuzzy-if-statement/): the code pattern this enables
+- [Is System One right for my problem?](/start/when-to-use/): an honest decision tree
