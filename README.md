@@ -57,6 +57,7 @@ public/
 ├── favicon.svg
 └── robots.txt
 scripts/linkcheck.mjs       Internal link and anchor checker
+wrangler.jsonc              Cloudflare Workers deploy: serves dist/ as static assets
 ```
 
 Navigation is configured in `astro.config.mjs`. Each section's sidebar is generated from its directory,
