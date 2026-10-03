@@ -3,33 +3,37 @@
 The site builds to static HTML: no server, no database, no secrets. Hosting is free and the site is
 very hard to break.
 
-It's deployed on **Cloudflare Pages**: free, works with GitHub organisation repositories, and gives
-every pull request its own preview URL. Alternatives are at the bottom.
+It's deployed on **Cloudflare Workers** as static assets: free, works with GitHub organisation
+repositories, and gives every pull request a preview build. `wrangler.jsonc` tells Cloudflare to serve
+the built `dist/` folder; there's no Worker code. Alternatives are at the bottom.
 
 ---
 
 ## 1. Connect the repository
 
 1. In the [Cloudflare dashboard](https://dash.cloudflare.com), go to **Workers & Pages → Create →
-   Pages → Connect to Git**.
-2. Install the Cloudflare Pages GitHub app on the **systemonedev** organisation. Give it access to
+   Import a repository**.
+2. Install the Cloudflare GitHub app on the **systemonedev** organisation, with access to
    `systemone.dev` only.
 3. Pick `systemonedev/systemone.dev` and set:
 
    | Setting | Value |
    | :--- | :--- |
+   | Project name | `systemone-dev` (must match `name` in `wrangler.jsonc`) |
    | Production branch | `main` |
-   | Framework preset | Astro |
    | Build command | `npm run build` |
-   | Build output directory | `dist` |
+   | Deploy command | `npx wrangler deploy` |
    | Environment variable | `NODE_VERSION` = `22` |
 
-4. Save and deploy. You get a `*.pages.dev` URL straight away. Every push to `main` redeploys
-   production, and every pull request gets a preview URL, posted on the PR.
+4. Save and deploy. You get a `*.workers.dev` URL straight away. Every push to `main` redeploys, and
+   pull requests get a preview build reported on the PR.
+
+To check the setup locally before pushing: `npm run build && npx wrangler deploy --dry-run`, or
+`npx wrangler dev` to serve the site exactly as Cloudflare will.
 
 ## 2. Point the domain at it
 
-Cloudflare Pages can only serve an apex domain (`systemone.dev`, without `www`) when the domain's DNS
+Cloudflare can only serve an apex domain (`systemone.dev`, without `www`) when the domain's DNS
 is on Cloudflare. That's free:
 
 1. In the same Cloudflare account, go to **Websites → Add a domain**, enter
@@ -37,8 +41,8 @@ is on Cloudflare. That's free:
    check them, especially any email (MX) records.
 2. Cloudflare shows two **nameservers**. At your registrar (where you bought systemone.dev), replace
    the domain's nameservers with those two. This usually takes minutes, occasionally up to a day.
-3. Once Cloudflare says the domain is **Active**: **Workers & Pages → systemone.dev project →
-   Custom domains → Set up a custom domain**. Add `systemone.dev`, then `www.systemone.dev`.
+3. Once Cloudflare says the domain is **Active**: **Workers & Pages → systemone-dev → Settings →
+   Domains & Routes → Add → Custom domain**. Add `systemone.dev`, then `www.systemone.dev`.
    Cloudflare creates the DNS records and the TLS certificates itself.
 4. Send `www` to the apex: **Rules → Redirect Rules → Create rule → "Redirect from WWW to root"**
    template.
@@ -66,8 +70,9 @@ is on Cloudflare. That's free:
 - **Security headers:** `nosniff`, `SAMEORIGIN`, a strict referrer policy, a locked-down permissions
   policy, and HSTS.
 
-Cloudflare Pages serves `/concepts/` from `concepts/index.html` and redirects `/concepts` to
-`/concepts/`, which matches Astro's directory-style output.
+`wrangler.jsonc` sets `html_handling: auto-trailing-slash`, so `/concepts/` is served from
+`concepts/index.html` and `/concepts` redirects to it (Astro's directory-style output), and
+`not_found_handling: 404-page`, so unknown URLs get `404.html`.
 
 ## CI
 
@@ -88,6 +93,11 @@ it a gate, protect `main` and require the `build` check.
 ## Alternatives
 
 The build output is plain static files, so any static host works.
+
+### Cloudflare Pages
+
+Also works: create a **Pages** project instead (Astro preset, output `dist`, `NODE_VERSION=22`). It
+reads `public/_headers` too and ignores `wrangler.jsonc`.
 
 ### GitHub Pages
 

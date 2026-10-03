@@ -11,7 +11,7 @@ and Jev.
 Part of [systemonedev](https://github.com/systemonedev), alongside
 [SystemOne Builder](https://github.com/systemonedev/systemone-builder). Built with
 [Astro](https://astro.build) + [Starlight](https://starlight.astro.build), deployed as a static site on
-Cloudflare Pages.
+Cloudflare Workers.
 
 ## Quick start
 
@@ -52,7 +52,7 @@ src/
 │   └── blog/               Dated posts (starlight-blog)
 └── styles/theme.css        Dark-first slate / desaturated-blue theme
 public/
-├── _headers                Cloudflare Pages security and cache headers
+├── _headers                Cloudflare security and cache headers
 ├── og.png                  Social card (1200×630)
 ├── favicon.svg
 └── robots.txt
@@ -75,9 +75,9 @@ Everyone taking part follows the [code of conduct](https://github.com/systemoned
 
 ## Deploying
 
-See [DEPLOY.md](DEPLOY.md). Short version: connect the repo in Cloudflare Pages (Astro preset, output
-`dist`, `NODE_VERSION=22`), move the domain's DNS to Cloudflare, and add `systemone.dev` as a custom
-domain.
+See [DEPLOY.md](DEPLOY.md). Short version: import the repo in Cloudflare Workers (build `npm run build`,
+deploy `npx wrangler deploy`, `NODE_VERSION=22`; `wrangler.jsonc` serves `dist/`), move the domain's DNS
+to Cloudflare, and add `systemone.dev` as a custom domain.
 
 ## Licence
 
