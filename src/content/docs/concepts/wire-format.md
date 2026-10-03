@@ -53,22 +53,25 @@ phishing?" and "Is this urgent?" are two questions, not one.
 
 ## The answer
 
+What `kenning-large-v0.4` returns for the request above (rounded to four places):
+
 ```json
 {
   "model": "kenning-large-v0.4",
   "answers": {
-    "refund": { "type": "noul", "noul": 0.96 },
+    "refund": { "type": "noul", "noul": 0.9042 },
     "queue": {
-      "type": "choice", "choice": "billing", "confidence": 0.9,
-      "probabilities": { "billing": 0.95, "account": 0.05 }
+      "type": "choice", "choice": "billing", "confidence": 0.9834,
+      "probabilities": { "billing": 0.9917, "account": 0.0083 }
     },
     "tone": {
-      "type": "score", "score": 1.2, "confidence": 0.31,
+      "type": "score", "score": 0.4811, "confidence": 0.4073,
       "legend": { "0": "Polite", "1": "Impatient", "2": "Hostile" },
-      "probabilities": { "0": 0.1, "1": 0.6, "2": 0.3 }
+      "probabilities": { "0": 0.6048, "1": 0.3093, "2": 0.0859 }
     }
   },
-  "usage": { "input_tokens": 211, "output_tokens": 0 }
+  "usage": { "input_tokens": 482, "output_tokens": 0 },
+  "latency_ms": 155.6
 }
 ```
 
