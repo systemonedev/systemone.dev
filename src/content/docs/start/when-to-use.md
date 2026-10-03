@@ -1,5 +1,5 @@
 ---
-title: Is System 1 right for my problem?
+title: Is System One right for my problem?
 description: An honest decision tree for choosing between decision-native models, generative models, and neither.
 sidebar:
   order: 3
@@ -8,7 +8,7 @@ sidebar:
 The fastest way to lose faith in a new architecture is to point it at the wrong problem. Here
 is the honest version.
 
-## Use System 1 when all of these are true
+## Use System One when all of these are true
 
 1. **The answer is a choice, not a composition.** You need one of *n* labels, a score, or a
    structured verdict — not prose, not code, not a summary.
@@ -20,7 +20,7 @@ is the honest version.
 Classic fits: agent guardrails, API and queue routing, SOC alert triage, content moderation,
 lead scoring, document classification, data cleaning at pipeline scale, feature extraction.
 
-## Use System 2 when any of these are true
+## Use a generative model (System Two) when any of these are true
 
 - The output is **generated content** — a reply, a summary, a migration, an email.
 - The task needs **multi-step reasoning** where intermediate work matters.
@@ -29,28 +29,36 @@ lead scoring, document classification, data cleaning at pipeline scale, feature 
 
 ## Use both — this is the common answer
 
-Most production systems that get this right use a System 1 model as the **router** and a
-System 2 model as the **worker**:
+Most production systems that get this right use a System One model as the **router** and a
+generative model as the **worker**:
 
-```javascript title="router.js"
-// 70ms: decide what kind of problem this is.
-const intent = await jev.evaluate({
-  input: userMessage,
-  categories: ['billing_lookup', 'password_reset', 'open_question', 'abuse'],
-});
+```python title="router.py"
+from systemone import Client, Choice
 
-if (intent.confidence < 0.9) return escalateToHuman(userMessage);
+client = Client("http://localhost:8093")
 
-switch (intent.category) {
-  case 'billing_lookup':
-    return db.getInvoices(userId);        // no model needed at all
-  case 'password_reset':
-    return auth.sendResetLink(userId);    // no model needed at all
-  case 'abuse':
-    return blockAndLog(userId);
-  case 'open_question':
-    return llm.chat({ messages: [...] }); // the expensive path, taken rarely
-}
+def handle(user_id, message):
+    # Tens of milliseconds: decide what kind of problem this is.
+    r = client.system_one(state={"message": message}, questions={"intent": Choice(
+        "What does the user want?", {
+            "billing_lookup": "See invoices, charges or payment history",
+            "password_reset": "Regain access to their account",
+            "abuse": "Spam, threats or harassment",
+            "open_question": "Anything else",
+        })})
+    intent = r.choices["intent"]
+    if intent.probabilities[intent.choice] < 0.9:
+        return escalate_to_human(message)
+
+    match intent.choice:
+        case "billing_lookup":
+            return db.get_invoices(user_id)        # no model needed at all
+        case "password_reset":
+            return auth.send_reset_link(user_id)   # no model needed at all
+        case "abuse":
+            return block_and_log(user_id)
+        case "open_question":
+            return llm.chat(message)               # the expensive path, taken rarely
 ```
 
 Two of those four branches need no model at all. That is usually where the cost savings
@@ -67,7 +75,7 @@ actually come from — not from making the LLM cheaper, but from not calling it.
 
 ## The honest failure modes
 
-System 1 is not magic, and it is worth knowing where it hurts before you commit:
+System One is not magic, and it is worth knowing where it hurts before you commit:
 
 | Failure mode | What it looks like | What to do |
 | :--- | :--- | :--- |

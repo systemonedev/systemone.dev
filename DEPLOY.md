@@ -8,18 +8,11 @@ the bottom.
 
 ---
 
-## 1. Push the repo to GitHub
+## 1. The repository
 
-```bash
-git remote add origin https://github.com/<you>/systemone.dev.git
-git branch -M main
-git push -u origin main
-```
-
-`astro.config.mjs` and `contributing.md` currently point at
-`https://github.com/systemone-dev/systemone.dev`. If your repo lives elsewhere, update the
-`GITHUB` constant at the top of `astro.config.mjs` — it drives the header icon and every
-"Edit page" link.
+The site lives at `https://github.com/systemonedev/systemone.dev`. If you fork it to deploy
+elsewhere, update the `GITHUB` constant at the top of `astro.config.mjs`: it drives every "Edit
+page" link.
 
 ## 2. Import on Vercel
 

@@ -1,9 +1,13 @@
 # systemone.dev
 
-**Community for Developers from Generative AI to Decision AI.**
+**The open community for System One decision models.**
 
-The community hub for decision-native AI — typed outputs, calibrated confidence, 70ms
-workflows, zero hallucinations.
+Learn to build with models that answer typed questions about your program's state with calibrated
+probabilities, in milliseconds, without generating text. Every code sample runs against open models
+([Kenning](https://huggingface.co/systemonedev/kenning-large-v0.4)) and works unchanged with Clef and Jev.
+
+Part of [systemonedev](https://github.com/systemonedev): see also
+[SystemOne Builder](https://github.com/systemonedev/systemone-builder).
 
 Built with [Astro](https://astro.build) + [Starlight](https://starlight.astro.build), deployed
 as a static site on Vercel.
@@ -37,7 +41,7 @@ src/
 │   └── docs/
 │       ├── index.mdx       Splash homepage
 │       ├── 404.md
-│       ├── start/          Orientation and quickstart
+│       ├── start/          Orientation, quickstart, engines
 │       ├── concepts/       Mental models — the "unlearning" section
 │       ├── cookbook/       Integration patterns
 │       ├── projects/       End-to-end builds
