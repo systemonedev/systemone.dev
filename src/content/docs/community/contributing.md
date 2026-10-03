@@ -34,7 +34,7 @@ npm run build        # type-checks content and builds; run before opening a PR
 npm run linkcheck    # fails on any broken internal link or heading anchor
 ```
 
-Node 20 or newer.
+Node 22.12 or newer (`.nvmrc` pins 22).
 
 ## Adding a page
 

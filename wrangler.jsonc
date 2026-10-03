@@ -1,0 +1,13 @@
+// Cloudflare Workers deploy of the static site: `npm run build`, then `npx wrangler deploy`
+// serves dist/ as static assets (public/_headers is applied as-is). No Worker code.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "systemone-dev",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    // Astro writes /concepts/index.html: serve it at /concepts/ and redirect /concepts to it
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}
