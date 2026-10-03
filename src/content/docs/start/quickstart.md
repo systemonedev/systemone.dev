@@ -17,7 +17,7 @@ Pick one:
 **A. In your own Python process.** This is the fastest way to try it, and runs on CPU or GPU:
 
 ```bash
-pip install "systemone[local]"
+pip install "systemone-client[local]"
 ```
 
 ```python
@@ -33,7 +33,7 @@ git clone https://github.com/systemonedev/systemone-builder && cd systemone-buil
 cp .env.example .env              # set S1_REDIS_PASSWORD (openssl rand -hex 24)
 echo "S1_KENNING_MODEL=systemonedev/kenning-large-v0.4" >> .env
 docker compose up -d              # Kenning on 127.0.0.1:8093, dashboard on http://localhost:3090
-pip install systemone
+pip install systemone-client
 ```
 
 ```python
@@ -41,7 +41,8 @@ from systemone import Client
 model = Client("http://localhost:8093")
 ```
 
-Both objects have the same `system_one()` method. Everything below works with either.
+The package installs as `systemone-client` and you import it as `systemone`. Both objects have the
+same `system_one()` method, and everything below works with either.
 
 ## 2. Ask your first questions
 

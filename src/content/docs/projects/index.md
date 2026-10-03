@@ -8,7 +8,7 @@ sidebar:
 
 Full systems, not snippets. Each project assumes you've read the
 [fuzzy if-statement](/cookbook/fuzzy-if-statement/) and picks up from there. All code uses the
-[`systemone` client](https://pypi.org/project/systemone/) and runs against Kenning, Clef or Jev.
+[`systemone-client`](https://pypi.org/project/systemone-client/) and runs against Kenning, Clef or Jev.
 
 ## [Security: phishing, agent firewall, alert triage](/projects/cybersecurity/)
 Three security builds, starting with phishing triage, the one with published benchmark results.

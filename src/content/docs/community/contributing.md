@@ -80,7 +80,7 @@ tags: [benchmarks, moderation]
 
 **Write for someone shipping this on Thursday.** Concrete over abstract. If you can show code, show code.
 
-**Code must run.** Use the [`systemone`](https://pypi.org/project/systemone/) client and the real wire
+**Code must run.** Use the [`systemone-client`](https://pypi.org/project/systemone-client/) client and the real wire
 format: `client.system_one(state=..., questions=...)`. Run your snippet against a Kenning server or
 `Kenning.from_pretrained` before you submit it. Mark elisions (`...`) clearly rather than pretending a
 snippet is complete. Example outputs must be real outputs, with the model named.

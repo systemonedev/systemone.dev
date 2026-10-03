@@ -49,7 +49,7 @@ How to read this honestly:
 import os
 from systemone import Client, Kenning
 
-# Kenning in-process (pip install "systemone[local]")
+# Kenning in-process (pip install "systemone-client[local]")
 model = Kenning.from_pretrained("systemonedev/kenning-large-v0.4")
 
 # Kenning or Clef served by SystemOne Builder (localhost only, no key)

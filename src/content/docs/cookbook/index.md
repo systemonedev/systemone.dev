@@ -7,7 +7,7 @@ sidebar:
 ---
 
 Patterns, not theory. Every page here is Python you can lift, using the
-[`systemone` client](https://pypi.org/project/systemone/), with the reasoning for why it's shaped that
+[`systemone-client`](https://pypi.org/project/systemone-client/), with the reasoning for why it's shaped that
 way. It runs against Kenning, Clef or Jev unchanged.
 
 ## [The "fuzzy" if-statement](/cookbook/fuzzy-if-statement/)

@@ -6,7 +6,7 @@ sidebar:
 ---
 
 Every System One engine on this site speaks one HTTP format: `POST /v1/systemone`. Learn it once and
-your code moves between engines by changing a URL. The [`systemone` client](https://pypi.org/project/systemone/)
+your code moves between engines by changing a URL. The [`systemone-client`](https://pypi.org/project/systemone-client/)
 builds and parses it for you, but it's worth knowing what's on the wire.
 
 ## The request

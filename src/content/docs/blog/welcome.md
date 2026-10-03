@@ -49,7 +49,7 @@ data, inspect how it was trained, or change it.
   licences are documented.
 - **[SystemOne Builder](https://github.com/systemonedev/systemone-builder)**: an open toolkit to serve,
   train, distil and benchmark your own System One models on one GPU, from a dashboard.
-- **[`systemone`](https://pypi.org/project/systemone/)**: one Python client for Kenning, Cloudflare's Clef
+- **[`systemone-client`](https://pypi.org/project/systemone-client/)**: one Python client for Kenning, Cloudflare's Clef
   and TypeSafe's Jev. Switch engines by changing a URL.
 
 ## Two commitments

@@ -10,7 +10,7 @@ Part of [systemonedev](https://github.com/systemonedev): see also
 [SystemOne Builder](https://github.com/systemonedev/systemone-builder).
 
 Built with [Astro](https://astro.build) + [Starlight](https://starlight.astro.build), deployed
-as a static site on Vercel.
+as a static site on Cloudflare Pages.
 
 ## Quick start
 
@@ -73,8 +73,8 @@ the full guide and the writing style we hold pages to.
 
 ## Deploying
 
-See [DEPLOY.md](DEPLOY.md). Short version: import the repo on Vercel, accept the detected Astro
-settings, point `systemone.dev` at it.
+See [DEPLOY.md](DEPLOY.md). Short version: connect the repo in Cloudflare Pages (Astro preset,
+output `dist`), move the domain's DNS to Cloudflare, add `systemone.dev` as a custom domain.
 
 ## License
 
