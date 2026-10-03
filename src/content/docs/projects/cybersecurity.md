@@ -160,7 +160,7 @@ BENIGN = [
 The benign set isn't optional. Those three *talk about* injection without *being* injection, and a
 keyword filter blocks all of them. That distinction is the whole reason to use a model instead of a
 regex. Note the long-padding attack: with a 512-token model, the end of a long message can be cut off.
-[Truncate from both ends](/cookbook/structured-state-ingestion/#5-truncate-long-text-from-both-ends)
+[Truncate from both ends](/cookbook/structured-state-ingestion/#6-truncate-long-text-from-both-ends)
 before screening.
 
 ## 3. SOC alert triage

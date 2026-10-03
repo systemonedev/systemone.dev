@@ -66,9 +66,11 @@ are cheap for you and remove a step the model would otherwise have to infer. Ari
 exactly where models of this size are weakest.
 
 ```python
-"billing_and_shipping_match": b.country == s.country,
-"unusually_large_vs_account_average": order.total > account.avg_order_value * 5,
-"first_order_from_this_device": device_id not in account.known_devices,
+derived = {
+    "billing_and_shipping_match": b.country == s.country,
+    "unusually_large_vs_account_average": order.total > account.avg_order_value * 5,
+    "first_order_from_this_device": device_id not in account.known_devices,
+}
 ```
 
 ### 3. Make time relative
@@ -76,7 +78,9 @@ exactly where models of this size are weakest.
 `1710432000` and `2024-03-14T16:00:00Z` both require the model to know what "now" is. Convert:
 
 ```python
-def describe_time(ts: datetime) -> str:
+from datetime import datetime, timezone
+
+def describe_time(ts: datetime) -> str:        # ts must be timezone-aware
     mins = (datetime.now(timezone.utc) - ts).total_seconds() / 60
     if mins < 60:
         return f"{round(mins)} minutes ago"
@@ -87,12 +91,29 @@ def describe_time(ts: datetime) -> str:
 
 "3 minutes ago, at 04:12 local time" is a fraud signal. An epoch timestamp isn't.
 
-### 4. Drop what the decision doesn't depend on
+### 4. Leave out what you don't know
+
+If a field is missing, omit it. Don't fill it with a placeholder like `"(untagged)"`, `"unknown"` or
+`"N/A"`: the model reads every value as evidence. Measured with `kenning-large-v0.4` on a marketplace
+listing: adding `"seller_tagged_category": "(untagged)"` to the state moved an iPhone from
+*electronics* to *other* (0.60) and an oak dining table from *home & garden* to *other* (0.82). Without
+that one field, both were classified correctly.
+
+```python
+state = {"title": row.title, "description": row.description}
+if row.seller_category:                 # only when there's something to say
+    state["seller_tagged_category"] = row.seller_category
+```
+
+The exception is when absence *is* the signal. "This request has no user agent" says something about
+a bot, so say it explicitly: `"has_user_agent": False`.
+
+### 5. Drop what the decision doesn't depend on
 
 UUIDs, internal flags, schema versions, audit columns. If a person reviewing the case wouldn't look at
 it, it's noise. Smaller state is also faster.
 
-### 5. Truncate long text from both ends
+### 6. Truncate long text from both ends
 
 For long text, the beginning and end usually carry the signal. Keep both, so a footer isn't silently
 cut off:
@@ -105,7 +126,7 @@ def truncate(text: str, max_chars: int = 1500) -> str:
     return f"{text[:half]}\n[... {len(text) - max_chars} characters omitted ...]\n{text[-half:]}"
 ```
 
-### 6. Keep untrusted content in its own field
+### 7. Keep untrusted content in its own field
 
 When the state contains user-controlled text, put it in a clearly named field, separate from the facts
 you computed:
@@ -132,11 +153,14 @@ def request_state(req) -> dict:
     state = {
         "method": req.method,
         "path": req.path,
-        "source_ip_reputation": req.ip_reputation or "unknown",
         "requests_from_this_ip_last_minute": req.rate_count,
         "authenticated": req.user_id is not None,
-        "user_agent": req.headers.get("user-agent", "(none)"),
+        "has_user_agent": "user-agent" in req.headers,     # absence is a signal: say so explicitly
     }
+    if req.ip_reputation:                                  # unknown: leave it out (rule 4)
+        state["source_ip_reputation"] = req.ip_reputation
+    if "user-agent" in req.headers:
+        state["user_agent"] = req.headers["user-agent"]
     if req.query:
         state["query_parameters"] = {k: truncate(str(v), 300) for k, v in req.query.items()}
     if req.body:

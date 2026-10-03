@@ -15,21 +15,24 @@ branch. Get the shape right once and every later integration is a variation.
 from systemone import Client, Choice
 
 client = Client("http://localhost:8093")
-r = client.system_one(state=application, questions={
-    "decision": Choice("What should happen to this application?",
-                       {"approve": None, "reject": None, "review": None}),
-})
-d = r.choices["decision"]
+THRESHOLD = 0.95
 
-# 1. Gate on the winner's probability FIRST.
-if d.probabilities[d.choice] < THRESHOLD:
-    return escalate(application, d)
+def handle(application):
+    r = client.system_one(state=application, questions={
+        "decision": Choice("What should happen to this application?",
+                           {"approve": None, "reject": None, "review": None}),
+    })
+    d = r.choices["decision"]
 
-# 2. Then branch on the answer.
-match d.choice:
-    case "approve": return approve()
-    case "reject":  return reject()
-    case "review":  return queue_for_review()
+    # 1. Gate on the winner's probability FIRST.
+    if d.probabilities[d.choice] < THRESHOLD:
+        return escalate(application, d)
+
+    # 2. Then branch on the answer.
+    match d.choice:
+        case "approve": return approve()
+        case "reject":  return reject()
+        case "review":  return queue_for_review()
 ```
 
 ## The ordering mistake
@@ -72,6 +75,7 @@ AUTO = 0.95    # derived from your cost of error: see /concepts/calibrated-confi
 FLOOR = 0.60   # below this the model is signalling "none of these fit well"
 
 def route(item):
+    # OPTIONS and ACTIONS: your options and what to do for each (see "Always include an escape option")
     r = client.system_one(state=item, questions={"route": Choice("Where should this go?", OPTIONS)})
     d = r.choices["route"]
     p = d.probabilities[d.choice]

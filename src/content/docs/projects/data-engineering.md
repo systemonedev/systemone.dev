@@ -32,15 +32,25 @@ Quality lives or dies here: see [structured state](/cookbook/structured-state-in
 STATE_VERSION = "listing-v2"
 
 def listing_state(row) -> dict:
-    return {
+    state = {
         "title": row.title,
-        "price_usd": round(row.price_cents / 100, 2) if row.price_cents else None,
         "seller_type": "business" if row.seller_is_business else "individual",
-        "seller_tagged_category": row.seller_category or "(untagged)",
         "image_count": row.image_count,
-        "description": truncate(row.description or "(empty)", 1200),
     }
+    # Missing fields are left out, never filled with "(untagged)" or "(empty)": see below.
+    if row.price_cents:
+        state["price_usd"] = round(row.price_cents / 100, 2)
+    if row.seller_category:
+        state["seller_tagged_category"] = row.seller_category
+    if row.description:
+        state["description"] = truncate(row.description, 1200)
+    return state
 ```
+
+An earlier version of this builder wrote `"seller_tagged_category": "(untagged)"` for listings without
+a seller category. With `kenning-large-v0.4`, that one placeholder sent an iPhone and a dining table to
+`other`. The model reads every value as evidence:
+[leave out what you don't know](/cookbook/structured-state-ingestion/#4-leave-out-what-you-dont-know).
 
 ## Step 2: Ask every field in one request, many rows concurrently
 
