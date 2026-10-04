@@ -31,8 +31,7 @@ NVIDIA GPU:
 ```bash
 git clone https://github.com/systemonedev/systemone-builder && cd systemone-builder
 cp .env.example .env              # set S1_REDIS_PASSWORD (openssl rand -hex 24)
-echo "S1_KENNING_MODEL=systemonedev/kenning-large-v0.4" >> .env
-docker compose up -d              # Kenning on 127.0.0.1:8093, dashboard on http://localhost:3090
+docker compose up -d              # serves kenning-large-v0.4 on 127.0.0.1:8093, dashboard on :3090
 pip install systemone-client
 ```
 
@@ -40,6 +39,8 @@ pip install systemone-client
 from systemone import Client
 model = Client("http://localhost:8093")
 ```
+
+The first start downloads about 5 GB: the prebuilt images and the model's weights.
 
 The package installs as `systemone-client` and you import it as `systemone`. Both objects have the
 same `system_one()` method, and everything below works with either.
