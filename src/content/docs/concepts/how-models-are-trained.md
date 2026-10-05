@@ -49,7 +49,8 @@ something.
 The catch, and you can't skip it: **calibration is fitted on the training distribution.** On data
 unlike it, the numbers drift. That's why every page on this site tells you to
 [measure on your own data](/concepts/calibrated-confidence/#verifying-calibration-yourself).
-SystemOne Builder can refit the temperatures on a few hundred of your labelled examples.
+SystemOne Builder can refit the temperatures on a few hundred of your labelled examples
+(`systemone calibrate`), without changing which answers win.
 
 ## Distillation: learning from a larger teacher
 
@@ -84,14 +85,36 @@ with its licence in the model card:
 Benchmark suites are never used for training. That's what makes the
 [published numbers](/start/engines/#same-benchmarks-side-by-side) mean something.
 
+## Training for your own problem
+
+A general model gives you a starting point. For a decision you make thousands of times a day, such as
+whether an agent's next click needs the user's approval or whether an insurance claim is covered,
+training on cases from that problem helps most. SystemOne Builder supports two ways in, and you can
+combine them:
+
+- **Describe the problem.** A short spec lists the state's fields and every question with all its
+  answers. A teacher LLM writes cases *for* randomly drawn answers, so every label is known by
+  construction. Then, without seeing those answers, it answers its own case, and the case is kept only
+  if the two match. Built-in examples: a computer-use agent's next action, insurance claim intake, and
+  chat moderation.
+- **Bring your own labelled data.** JSONL, checked line by line against the wire format, with its
+  licence recorded.
+
+A share of each problem's cases is held out before training, so you can benchmark the model on the
+problem you trained it for. Mix in general data as well, or the model gets worse at everything else.
+
+Teacher-written labels are only as good as the teacher. For a decision that matters, label a few
+hundred real cases yourself and use them as the test set. That's the number to believe.
+
 ## What this means for you
 
 - **The probabilities are only as good as the calibration data was representative.** Check them on
   yours.
 - **Good option descriptions help a lot.** The model literally reads "Answer: billing. Charges,
   refunds, invoices": the description is part of what it scores.
-- **You can make your own.** SystemOne Builder's Train page builds a dataset, distils from Clef if you
-  have it, fine-tunes and calibrates, and its Verify page benchmarks the result. See the
+- **You can make your own.** SystemOne Builder's Train page builds a dataset (general, for your own
+  problem, or both), distils from Clef if you have it, fine-tunes and calibrates. Its Verify page
+  benchmarks the result, on the general suite and on your own held-out cases. See the
   [Builder on GitHub](https://github.com/systemonedev/systemone-builder).
 
 ## Next

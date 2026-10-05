@@ -22,8 +22,28 @@ by changing a URL.
 
 We run every engine through the same suites with `systemone bench` (in
 [SystemOne Builder](https://github.com/systemonedev/systemone-builder)). None of these suites were
-used for training. Numbers are accuracy unless noted. Kenning is `kenning-large-v0.4`; Clef is
-`clef-flash` on one RTX 3090; Jev is `jev-latest` (October 2026).
+used for training. Kenning is `kenning-large-v0.4`; Clef is `clef-flash`; both on one RTX 3090.
+
+### General decisions (the headline)
+
+The `general` suite: 1,328 held-out items, 30 questions in 7 families of state. Macro accuracy (the
+mean over questions, so each counts equally):
+
+| Family | Kenning | Clef |
+|---|---|---|
+| **All 30 questions** | **0.625** | **0.813** |
+| Text: evidence, sentiment, toxicity, prompt injection, intent, topic (14) | 0.754 | 0.841 |
+| Conversations: which service a dialogue is about (1) | 0.958 | 1.000 |
+| Answer quality: helpful, correct (2) | 0.377 | 0.447 |
+| Agent decisions: right tool call, should call a function, task completed (3) | 0.553 | 0.793 |
+| Records: refunds, spending limits, access rules, priorities over JSON (7) | 0.535 | 0.857 |
+| Tables: is a statement true (1) | 0.480 | 0.860 |
+| Logs: is a service failing, which one (2) | 0.290 | 0.740 |
+| Latency per request (p50) | 34 ms | 149 ms |
+
+Jev hasn't been run on this suite. We compare against it once Kenning matches Clef.
+
+### Email suites
 
 | Suite | Kenning | Clef | Jev |
 |---|---|---|---|
@@ -35,12 +55,16 @@ used for training. Numbers are accuracy unless noted. Kenning is `kenning-large-
 
 How to read this honestly:
 
-- **Kenning is smaller and faster, and behind on subtle phishing.** It's about 20 times smaller than
-  Clef. What matters most is that in every suite it was right whenever it was sure, apart from one
-  spam message. It stays humble rather than confidently wrong, and sends more items to a person.
-- **Twenty or fifty items is a small sample.** Each difference of one or two items moves these
-  numbers by several points. The suites are open: run them yourself, and add your own.
-- Full method, per-suite details and caveats are in the
+- **Kenning is close to Clef on text, and well behind on structured state.** On records, tables, agent
+  steps and logs it is often near chance. It reads 512 tokens per option, so long logs get cut off, and
+  its training data was mostly short text. Clef is a 9B language model with a decision head. If your
+  state is a record or an agent step, measure Kenning on your own data before trusting it, or
+  [train it for your problem](/concepts/how-models-are-trained/#training-for-your-own-problem).
+- **It's about 20 times smaller and 4 times faster.** In the email suites it was right whenever it was
+  sure, apart from one spam message: it stays humble rather than confidently wrong.
+- **Small suites are noisy.** In a 50-item task, each item moves the number by 2 points. The suites are
+  open: run them yourself, and add your own.
+- Full method, per-task results and caveats are in the
   [Kenning docs](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning.md).
 
 ## Pointing the client at each engine

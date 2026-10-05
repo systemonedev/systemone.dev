@@ -100,8 +100,13 @@ calibrated.
     [calibrated confidence](/concepts/calibrated-confidence/).
   </Card>
   <Card title="I want to build something" icon="puzzle">
-    Ship an end-to-end system: [phishing and alert triage](/projects/cybersecurity/), a
-    [data pipeline](/projects/data-engineering/), or a [moderation queue](/projects/moderation-triage/).
+    Ship an end-to-end system: [guardrails for an agent](/cookbook/agent-guardrails/),
+    [security triage](/projects/cybersecurity/), a [data pipeline](/projects/data-engineering/), or a
+    [moderation queue](/projects/moderation-triage/).
+  </Card>
+  <Card title="I want a model for my problem" icon="pencil">
+    Describe your decision or bring labelled data, and train a model for it on one GPU, then measure it on
+    held-out cases. [How training works →](/concepts/how-models-are-trained/#training-for-your-own-problem)
   </Card>
 </CardGrid>
 
@@ -110,12 +115,12 @@ calibrated.
 <CardGrid>
   <Card title="Kenning" icon="star">
     An open System One model: Apache-2.0 weights, a ~2 GB GPU footprint, deterministic, with its
-    training data and licences documented and its benchmarks published.
+    training data and licences documented and its benchmarks published, including where it's behind.
     [On Hugging Face →](https://huggingface.co/systemonedev/kenning-large-v0.4)
   </Card>
   <Card title="SystemOne Builder" icon="seti:config">
-    Serve, train, distil and benchmark your own System One models on one GPU, from a dashboard or
-    the command line. [On GitHub →](https://github.com/systemonedev/systemone-builder)
+    Serve, train, distil and benchmark System One models on one GPU, general or for your own problem,
+    from a dashboard or the command line. [On GitHub →](https://github.com/systemonedev/systemone-builder)
   </Card>
   <Card title="The systemone client" icon="seti:python">
     One Python client for Kenning, Cloudflare's Clef and TypeSafe's Jev: same questions, same
