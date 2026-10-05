@@ -222,6 +222,27 @@ def test_does_not_block_normal_requests(message):
 
 Include the benign set. A guard that blocks everything passes an attack suite and ruins your product.
 
+## Train the guard for your agent
+
+A general model's view of agent steps is a starting point, not a guarantee. On the general benchmark,
+Kenning v0.4 is at 0.55 on agent decisions against Clef's 0.79. Asked whether an agent should check
+with the user before switching them to a $499 plan, v0.4 answered 0.42: unsure on exactly the case
+that matters.
+
+SystemOne Builder ships a `computer_use` problem spec for this. The state is the goal, the screen, the
+history and the proposed action. The questions are *does it advance the goal*, *does it need
+confirmation* and *how risky is it*. A teacher LLM writes cases, checks each one blind, and holds some
+out as a test set:
+
+```bash
+docker compose exec api systemone data --out /data/workspace/kenning/datasets/agent-v1.jsonl \
+  --problem computer_use=3000 --phishing-rows 0 --per-source 1200
+```
+
+Copy the spec and change the fields and answers to match your agent's tools. Then add your red-team
+fixtures and a few hundred reviewed decisions from production as an import. Their held-out score is the
+one to trust.
+
 ## Next
 
 - [Phishing and alert triage](/projects/cybersecurity/): this pattern as a full build
