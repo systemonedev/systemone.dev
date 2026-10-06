@@ -44,7 +44,7 @@ data, inspect how it was trained, or change it.
 ## What we're launching
 
 - **[SystemOne.dev](/)**: the patterns, written down once, with code that runs.
-- **[Kenning](https://huggingface.co/systemonedev/kenning-large-v0.4)**: an open System One model under
+- **[Kenning](https://huggingface.co/systemonedev/kenning-large-v0.5)**: an open System One model under
   Apache-2.0. It's 435M parameters, runs on a ~2 GB GPU footprint or a CPU, and its training data and
   licences are documented.
 - **[SystemOne Builder](https://github.com/systemonedev/systemone-builder)**: an open toolkit to serve,

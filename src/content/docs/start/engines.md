@@ -22,9 +22,8 @@ by changing a URL.
 
 We run every engine through the same suites with `systemone bench` (in
 [SystemOne Builder](https://github.com/systemonedev/systemone-builder)). None of these suites were
-used for training. Benchmarks below are `kenning-large-v0.5` (the current build); Clef is `clef-flash`
-and Jev is `jev-latest`, run for comparison only and never trained on. The published Apache-2.0 download
-is still `kenning-large-v0.4`; v0.5 is documented in the
+used for training. Benchmarks below are `kenning-large-v0.5`; Clef is `clef-flash`
+and Jev is `jev-latest`, run for comparison only and never trained on. `kenning-large-v0.5` is the published Apache-2.0 download (Hugging Face); its recipe and full results are in the
 [Kenning docs](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning.md).
 
 ### General decisions (the headline)
@@ -101,7 +100,7 @@ import os
 from systemone import Client, Kenning
 
 # Kenning in-process (pip install "systemone-client[local]")
-model = Kenning.from_pretrained("systemonedev/kenning-large-v0.4")
+model = Kenning.from_pretrained("systemonedev/kenning-large-v0.5")
 
 # Kenning or Clef served by SystemOne Builder (localhost only, no key)
 kenning = Client("http://localhost:8093")

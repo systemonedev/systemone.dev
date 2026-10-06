@@ -48,7 +48,7 @@ def listing_state(row) -> dict:
 ```
 
 An earlier version of this builder wrote `"seller_tagged_category": "(untagged)"` for listings without
-a seller category. With `kenning-large-v0.4`, that one placeholder sent an iPhone and a dining table to
+a seller category. With `kenning-large-v0.5`, that one placeholder sent an iPhone and a dining table to
 `other`. The model reads every value as evidence:
 [leave out what you don't know](/cookbook/structured-state-ingestion/#4-leave-out-what-you-dont-know).
 

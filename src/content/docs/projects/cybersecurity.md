@@ -57,7 +57,7 @@ def triage(msg) -> str:
 
 ### What to expect: measured, not promised
 
-`kenning-large-v0.4` on suites it was never trained on, with the 0.9 / 0.1 thresholds:
+`kenning-large-v0.5` on suites it was never trained on, with the 0.9 / 0.1 thresholds:
 
 | Suite | Accuracy | Automated | Phishing auto-closed as safe |
 | :--- | ---: | ---: | ---: |

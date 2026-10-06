@@ -94,7 +94,7 @@ def key(state, questions, model) -> str:
     payload = {"state": state, "questions": {k: q.to_dict() for k, q in questions.items()}, "model": model}
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
 
-def system_one_cached(state, questions, model="kenning-large-v0.4"):
+def system_one_cached(state, questions, model="kenning-large-v0.5"):
     k = key(state, questions, model)
     if k not in cache:
         cache[k] = client.system_one(state=state, questions=questions)
