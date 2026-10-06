@@ -22,7 +22,7 @@ pip install "systemone-client[local]"
 
 ```python
 from systemone import Kenning
-model = Kenning.from_pretrained("systemonedev/kenning-large-v0.4")   # downloads ~0.9 GB once
+model = Kenning.from_pretrained("systemonedev/kenning-large-v0.5")   # downloads ~0.9 GB once
 ```
 
 **B. As a server, with the dashboard.** This is the way to run it for real. It needs Docker and an
@@ -31,7 +31,7 @@ NVIDIA GPU:
 ```bash
 git clone https://github.com/systemonedev/systemone-builder && cd systemone-builder
 cp .env.example .env              # set S1_REDIS_PASSWORD (openssl rand -hex 24)
-docker compose up -d              # serves kenning-large-v0.4 on 127.0.0.1:8093, dashboard on :3090
+docker compose up -d              # serves kenning-large-v0.5 on 127.0.0.1:8093, dashboard on :3090
 pip install systemone-client
 ```
 
@@ -71,7 +71,7 @@ r = model.system_one(
 print(r.raw["answers"])
 ```
 
-What `kenning-large-v0.4` returns, in one pass, on one RTX 3090:
+What `kenning-large-v0.5` returns, in one pass, on one RTX 3090:
 
 ```json
 {

@@ -94,7 +94,7 @@ def describe_time(ts: datetime) -> str:        # ts must be timezone-aware
 ### 4. Leave out what you don't know
 
 If a field is missing, omit it. Don't fill it with a placeholder like `"(untagged)"`, `"unknown"` or
-`"N/A"`: the model reads every value as evidence. Measured with `kenning-large-v0.4` on a marketplace
+`"N/A"`: the model reads every value as evidence. Measured with `kenning-large-v0.5` on a marketplace
 listing: adding `"seller_tagged_category": "(untagged)"` to the state moved an iPhone from
 *electronics* to *other* (0.60) and an oak dining table from *home & garden* to *other* (0.82). Without
 that one field, both were classified correctly.

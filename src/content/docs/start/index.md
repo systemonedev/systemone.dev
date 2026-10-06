@@ -57,7 +57,7 @@ else:
 
 - **Not a product brochure.** It's run by the maintainers of the open-source
   [SystemOne Builder](https://github.com/systemonedev/systemone-builder) and the
-  [Kenning](https://huggingface.co/systemonedev/kenning-large-v0.4) models. The patterns apply to every
+  [Kenning](https://huggingface.co/systemonedev/kenning-large-v0.5) models. The patterns apply to every
   engine that speaks the format, including hosted ones: see [Engines](/start/engines/). We publish our
   benchmarks, including where Kenning loses.
 - **Not anti-LLM.** Generative models are extraordinary at what they're for. The argument here is

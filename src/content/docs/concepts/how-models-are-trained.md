@@ -8,7 +8,7 @@ sidebar:
 
 You don't need to train a model to use one. But knowing how they're built explains their behaviour:
 why the probabilities can be trusted, where they stop being trustworthy, and what you can do about
-it. This page uses [Kenning](https://huggingface.co/systemonedev/kenning-large-v0.4) as the example,
+it. This page uses [Kenning](https://huggingface.co/systemonedev/kenning-large-v0.5) as the example,
 because its whole recipe is open. Other engines differ in the details.
 
 ## The architecture: score every option, generate nothing
@@ -42,7 +42,7 @@ frequencies.
 **2. Temperatures are fitted after training.** Neural networks are usually overconfident. After
 training, Kenning holds out 10% of its data and fits one *temperature* per question type: a single
 number that softens or sharpens every distribution (`softmax(scores / T)`), chosen to make held-out
-probabilities as honest as possible. `kenning-large-v0.4` uses T = 1.22 for nouls and choices and 1.16
+probabilities as honest as possible. `kenning-large-v0.5` uses T = 1.22 for nouls and choices and 1.16
 for scores. It's cheap, it doesn't change which answer wins, and it's the reason "0.9" means
 something.
 

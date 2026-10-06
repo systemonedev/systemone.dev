@@ -63,7 +63,7 @@ anything.
 
 A System One model is the reflex. It gives up token generation entirely: you give it your program's
 state and typed questions, and it scores every possible answer against that state in one pass,
-returning a probability for each. [Kenning](https://huggingface.co/systemonedev/kenning-large-v0.4)
+returning a probability for each. [Kenning](https://huggingface.co/systemonedev/kenning-large-v0.5)
 (open, 435M parameters) and Cloudflare's Clef (open, 9B) run on your own hardware. TypeSafe's Jev is
 a hosted one. [Compare them](/start/engines/).
 

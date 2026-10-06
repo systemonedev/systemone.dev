@@ -30,7 +30,7 @@ builds and parses it for you, but it's worth knowing what's on the wire.
       "criteria": ["Polite", "Impatient", "Hostile"]
     }
   },
-  "model": "kenning-large-v0.4"
+  "model": "kenning-large-v0.5"
 }
 ```
 
@@ -53,11 +53,11 @@ phishing?" and "Is this urgent?" are two questions, not one.
 
 ## The answer
 
-What `kenning-large-v0.4` returns for the request above (rounded to four places):
+What `kenning-large-v0.5` returns for the request above (rounded to four places):
 
 ```json
 {
-  "model": "kenning-large-v0.4",
+  "model": "kenning-large-v0.5",
   "answers": {
     "refund": { "type": "noul", "noul": 0.9042 },
     "queue": {
