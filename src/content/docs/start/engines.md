@@ -22,26 +22,53 @@ by changing a URL.
 
 We run every engine through the same suites with `systemone bench` (in
 [SystemOne Builder](https://github.com/systemonedev/systemone-builder)). None of these suites were
-used for training. Kenning is `kenning-large-v0.4`; Clef is `clef-flash`; both on one RTX 3090.
+used for training. Benchmarks below are `kenning-large-v0.5` (the current build); Clef is `clef-flash`
+and Jev is `jev-latest`, run for comparison only and never trained on. The published Apache-2.0 download
+is still `kenning-large-v0.4`; v0.5 is documented in the
+[Kenning docs](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning.md).
 
 ### General decisions (the headline)
 
-The `general` suite: 1,328 held-out items, 30 questions in 7 families of state. Macro accuracy (the
-mean over questions, so each counts equally):
+The `general` suite: 1,328 held-out items, 30 questions in 7 families of state. Accuracy per family, and
+the mean across the families:
 
-| Family | Kenning | Clef |
-|---|---|---|
-| **All 30 questions** | **0.625** | **0.813** |
-| Text: evidence, sentiment, toxicity, prompt injection, intent, topic (14) | 0.754 | 0.841 |
-| Conversations: which service a dialogue is about (1) | 0.958 | 1.000 |
-| Answer quality: helpful, correct (2) | 0.377 | 0.447 |
-| Agent decisions: right tool call, should call a function, task completed (3) | 0.553 | 0.793 |
-| Records: refunds, spending limits, access rules, priorities over JSON (7) | 0.535 | 0.857 |
-| Tables: is a statement true (1) | 0.480 | 0.860 |
-| Logs: is a service failing, which one (2) | 0.290 | 0.740 |
-| Latency per request (p50) | 34 ms | 149 ms |
+| Family | Kenning v0.5 | Clef | Jev |
+|---|---|---|---|
+| **Mean over families** | **0.653** | 0.791 | 0.830 |
+| Text: evidence, sentiment, toxicity, prompt injection, intent, topic | 0.756 | 0.841 | 0.834 |
+| Conversations: which service a dialogue is about | 0.979 | 1.000 | 1.000 |
+| Answer quality: helpful, correct | **0.479** | 0.447 | 0.498 |
+| Agent decisions: right tool call, function call, task completed | 0.727 | 0.793 | 0.900 |
+| Records: refunds, spending limits, access rules over JSON | 0.587 | 0.857 | 0.921 |
+| Tables: is a statement true | 0.520 | 0.860 | 0.940 |
+| Logs: is a service failing, which one | 0.520 | 0.740 | 0.720 |
+| Latency per request (p50) | 35 ms | 125 ms | 152 ms |
 
-Jev hasn't been run on this suite. We compare against it once Kenning matches Clef.
+Kenning v0.5 already **beats both big engines on answer quality**, and is close on text and conversation,
+at a twentieth of Clef's size and ~4x its speed. It is well behind on the decisions that need computation
+over the state — records, tables, logs — because the 435M cross-encoder scores each option in one short
+pass with nowhere to add numbers or scan a column. That is an architecture limit, and it is what the next
+version changes.
+
+### In development: Kenning-XL (v0.6)
+
+Kenning-XL replaces the cross-encoder with a small **decoder** that reasons over the whole state, and adds
+a **deliberate mode** that works through a short reasoning chain before it answers — trained on
+ground-truth chains the builder's rule generators compute for free. Served as a two-tier cascade (the fast
+reflex for what it already wins, the deliberate reasoner for records and tables):
+
+| Family | v0.5 | **v0.6 (cascade)** | Clef | Jev |
+|---|---|---|---|---|
+| **Mean over families** | 0.653 | **0.720** | 0.791 | 0.830 |
+| agent | 0.727 | **0.867** | 0.793 | 0.900 |
+| tables | 0.520 | **0.740** | 0.860 | 0.940 |
+| records | 0.587 | **0.654** | 0.857 | 0.921 |
+
+v0.6 **halves the gap to Clef**, beats it on agent decisions and answer quality, and more than doubles the
+hardest arithmetic task (daily-limit checks 0.42 → 0.81) through learned reasoning. It still trails Clef on
+records, tables and logs. It is experimental — on the [`kenning-xl` branch](https://github.com/systemonedev/systemone-builder/tree/kenning-xl),
+not yet a published model — and the honest open items are in the
+[design notes](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning-xl-design.md).
 
 ### Email suites
 
