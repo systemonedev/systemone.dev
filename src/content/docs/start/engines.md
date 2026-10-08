@@ -49,7 +49,7 @@ over the state — records, tables, logs — because the 435M cross-encoder scor
 pass with nowhere to add numbers or scan a column. That is an architecture limit, and it is what the next
 version changes.
 
-### In development: Kenning-XL (v0.6)
+### Experimental: Kenning-XL (v0.6)
 
 Kenning-XL replaces the cross-encoder with a small **decoder** that reasons over the whole state, and adds
 a **deliberate mode** that works through a short reasoning chain before it answers — trained on
@@ -58,15 +58,19 @@ reflex for what it already wins, the deliberate reasoner for records and tables)
 
 | Family | v0.5 | **v0.6 (cascade)** | Clef | Jev |
 |---|---|---|---|---|
-| **Mean over families** | 0.653 | **0.720** | 0.791 | 0.830 |
+| **Mean over families (as served)** | 0.653 | **0.688** | 0.791 | 0.830 |
 | agent | 0.727 | **0.867** | 0.793 | 0.900 |
 | tables | 0.520 | **0.740** | 0.860 | 0.940 |
 | records | 0.587 | **0.654** | 0.857 | 0.921 |
 
-v0.6 **halves the gap to Clef**, beats it on agent decisions and answer quality, and more than doubles the
-hardest arithmetic task (daily-limit checks 0.42 → 0.81) through learned reasoning. It still trails Clef on
-records, tables and logs. It is experimental — on the [`kenning-xl` branch](https://github.com/systemonedev/systemone-builder/tree/kenning-xl),
-not yet a published model — and the honest open items are in the
+v0.6 **narrows the gap to Clef by about half** (0.688 as served; 0.720 with a per-family oracle router),
+beats it on agent decisions and answer quality, and more than doubles the hardest arithmetic task
+(daily-limit checks 0.42 → 0.81) through learned reasoning. The fast reflex pass answers in ~35 ms; the
+deliberate pass that lifts records and tables trades speed for accuracy. It still trails Clef on records,
+tables and logs. The engine, trainer and docs are **merged into
+[`main`](https://github.com/systemonedev/systemone-builder)**; it stays experimental and is not yet a
+published downloadable model. The method and the honest open items are in
+[docs/kenning.md](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning.md) and the
 [design notes](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning-xl-design.md).
 
 ### Email suites
