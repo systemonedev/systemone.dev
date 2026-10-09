@@ -24,17 +24,17 @@ WATERMARK_OPACITY = 0.06
 
 # label, v0.6, v0.5, clef, jev, kind
 DATA = [
-    ("Macro accuracy", 0.688, 0.653, 0.791, 0.830, "macro"),
-    ("Agent", 0.867, 0.727, 0.793, 0.900, "fam"),
+    ("Macro accuracy", 0.753, 0.653, 0.791, 0.830, "macro"),
+    ("Agent", 0.827, 0.727, 0.793, 0.900, "fam"),
     ("Conversation", 1.000, 0.979, 1.000, 1.000, "fam"),
-    ("Answer quality", 0.479, 0.479, 0.447, 0.498, "fam"),
-    ("Text", 0.778, 0.756, 0.841, 0.834, "fam"),
-    ("Tables", 0.740, 0.520, 0.860, 0.940, "fam"),
-    ("Records", 0.654, 0.587, 0.857, 0.921, "fam"),
-    ("Logs", 0.520, 0.520, 0.740, 0.720, "fam"),
+    ("Answer quality", 0.457, 0.479, 0.447, 0.498, "fam"),
+    ("Text", 0.813, 0.756, 0.841, 0.834, "fam"),
+    ("Tables", 0.680, 0.520, 0.860, 0.940, "fam"),
+    ("Records", 0.651, 0.587, 0.857, 0.921, "fam"),
+    ("Logs", 0.790, 0.520, 0.740, 0.720, "fam"),
     ("Latency  p50", None, None, None, None, "lat"),
 ]
-LAT = ["~35 ms*", "35 ms", "125 ms", "152 ms"]   # v0.6 reflex | v0.5 | clef | jev
+LAT = ["~285 ms", "35 ms", "125 ms", "152 ms"]   # v0.6 reflex (ModernBERT 2048) | v0.5 | clef | jev
 HEADERS = ["Kenning v0.6", "v0.5", "Clef-flash", "Jev"]
 
 
@@ -102,7 +102,7 @@ for k, (label, v6, v5, cl, jv, kind) in enumerate(DATA):
     text(FX + 24, cy, label, f(21 if kind == "macro" else 20, lab_w),
          WHITE if kind != "lat" else GRAY2, anchor="lm")
     if kind == "macro":
-        text(centers[0], cy + 22, "as served", f(13), GRAY3, anchor="mm")
+        text(centers[0], cy + 22, "published", f(13), GRAY3, anchor="mm")
     # cells
     if kind == "lat":
         vals = LAT
@@ -133,10 +133,10 @@ for k, (label, v6, v5, cl, jv, kind) in enumerate(DATA):
 rect(C0, TY, C0 + CW, bottom, outline=ACCENT, width=2, radius=12)
 
 # footer
-text(60, H - 84, "v0.6 = Kenning-XL cascade, served 0.688 (0.720 with an oracle router)  \u00b7  "
+text(60, H - 84, "v0.6 = long-context ModernBERT reflex, published (Apache-2.0)  \u00b7  "
      "green = matches or beats Clef", f(14), GRAY3)
-text(60, H - 58, "* v0.6 shown is the reflex pass (~35 ms, measured); the deliberate pass that lifts "
-     "records/tables is slower  \u00b7  Apache-2.0", f(14), GRAY3)
+text(60, H - 58, "one pass, ~285 ms on a consumer GPU (v0.5 stays the 35 ms fast option)  \u00b7  "
+     "general suite, 1,328 held-out items", f(14), GRAY3)
 text(W - 60, H - 58, "systemone.dev", f(20, "SemiBold"), ACCENT_HIGH, anchor="ra")
 
 # watermark

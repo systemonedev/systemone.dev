@@ -22,54 +22,49 @@ by changing a URL.
 
 We run every engine through the same suites with `systemone bench` (in
 [SystemOne Builder](https://github.com/systemonedev/systemone-builder)). None of these suites were
-used for training. Benchmarks below are `kenning-large-v0.5`; Clef is `clef-flash`
-and Jev is `jev-latest`, run for comparison only and never trained on. `kenning-large-v0.5` is the published Apache-2.0 download (Hugging Face); its recipe and full results are in the
-[Kenning docs](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning.md).
+used for training. Benchmarks below are `kenning-large-v0.6`, the current published model, with v0.5 shown
+for comparison. Clef is `clef-flash` and Jev is `jev-latest`, run for comparison only and never trained on.
+Both `kenning-large-v0.6` and `kenning-large-v0.5` are published Apache-2.0 downloads (Hugging Face); recipes
+and full results are in the [Kenning docs](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning.md).
 
 ### General decisions (the headline)
 
 The `general` suite: 1,328 held-out items, 30 questions in 7 families of state. Accuracy per family, and
 the mean across the families:
 
-| Family | Kenning v0.5 | Clef | Jev |
-|---|---|---|---|
-| **Mean over families** | **0.653** | 0.791 | 0.830 |
-| Text: evidence, sentiment, toxicity, prompt injection, intent, topic | 0.756 | 0.841 | 0.834 |
-| Conversations: which service a dialogue is about | 0.979 | 1.000 | 1.000 |
-| Answer quality: helpful, correct | **0.479** | 0.447 | 0.498 |
-| Agent decisions: right tool call, function call, task completed | 0.727 | 0.793 | 0.900 |
-| Records: refunds, spending limits, access rules over JSON | 0.587 | 0.857 | 0.921 |
-| Tables: is a statement true | 0.520 | 0.860 | 0.940 |
-| Logs: is a service failing, which one | 0.520 | 0.740 | 0.720 |
-| Latency per request (p50) | 35 ms | 125 ms | 152 ms |
-
-Kenning v0.5 already **beats both big engines on answer quality**, and is close on text and conversation,
-at a twentieth of Clef's size and ~4x its speed. It is well behind on the decisions that need computation
-over the state — records, tables, logs — because the 435M cross-encoder scores each option in one short
-pass with nowhere to add numbers or scan a column. That is an architecture limit, and it is what the next
-version changes.
-
-### Experimental: Kenning-XL (v0.6)
-
-Kenning-XL replaces the cross-encoder with a small **decoder** that reasons over the whole state, and adds
-a **deliberate mode** that works through a short reasoning chain before it answers — trained on
-ground-truth chains the builder's rule generators compute for free. Served as a two-tier cascade (the fast
-reflex for what it already wins, the deliberate reasoner for records and tables):
-
-| Family | v0.5 | **v0.6 (cascade)** | Clef | Jev |
+| Family | **Kenning v0.6** | v0.5 | Clef | Jev |
 |---|---|---|---|---|
-| **Mean over families (as served)** | 0.653 | **0.688** | 0.791 | 0.830 |
-| agent | 0.727 | **0.867** | 0.793 | 0.900 |
-| tables | 0.520 | **0.740** | 0.860 | 0.940 |
-| records | 0.587 | **0.654** | 0.857 | 0.921 |
+| **Mean over families** | **0.753** | 0.653 | 0.791 | 0.830 |
+| Text: evidence, sentiment, toxicity, prompt injection, intent, topic | 0.813 | 0.756 | 0.841 | 0.834 |
+| Conversations: which service a dialogue is about | 1.000 | 0.979 | 1.000 | 1.000 |
+| Answer quality: helpful, correct | **0.457** | 0.479 | 0.447 | 0.498 |
+| Agent decisions: right tool call, function call, task completed | **0.827** | 0.727 | 0.793 | 0.900 |
+| Records: refunds, spending limits, access rules over JSON | 0.651 | 0.587 | 0.857 | 0.921 |
+| Tables: is a statement true | 0.680 | 0.520 | 0.860 | 0.940 |
+| Logs: is a service failing, which one | **0.790** | 0.520 | 0.740 | 0.720 |
+| Latency per request (p50) | 285 ms | 35 ms | 125 ms | 152 ms |
 
-v0.6 **narrows the gap to Clef by about half** (0.688 as served; 0.720 with a per-family oracle router),
-beats it on agent decisions and answer quality, and more than doubles the hardest arithmetic task
-(daily-limit checks 0.42 → 0.81) through learned reasoning. The fast reflex pass answers in ~35 ms; the
-deliberate pass that lifts records and tables trades speed for accuracy. It still trails Clef on records,
-tables and logs. The engine, trainer and docs are **merged into
-[`main`](https://github.com/systemonedev/systemone-builder)**; it stays experimental and is not yet a
-published downloadable model. The method and the honest open items are in
+**Kenning v0.6** is a long-context (2,048-token) ModernBERT cross-encoder — a 400M reflex that sees the whole
+state in one pass. It **beats Clef on agent decisions, conversation, answer quality and logs** (logs 0.79,
+ahead of both Clef and Jev), and lifts the macro to **0.753 (from v0.5's 0.653)**, closing most of the gap to
+Clef (0.791) while staying a twentieth of its size. The longer window costs latency — ~285 ms vs v0.5's 35 ms
+— so **v0.5 stays the fast option** and v0.6 the accurate one. Records and tables still trail the big engines:
+those need computation, not just more context, which is what the experimental decoder below explores.
+
+### Experimental: Kenning-XL (decoder)
+
+Kenning-XL is a research line that replaces the cross-encoder with a small **decoder** reasoning over the
+whole state, with a **deliberate mode** — a short gold-trace reasoning chain before it answers, trained on
+chains the builder's rule generators compute for free. It is strong on the computation-heavy families
+through learned reasoning (a 4B decoder reaches records ≈ 0.79, tables ≈ 0.78) and more than doubles the
+hardest arithmetic task (daily-limit checks 0.42 → 0.81).
+
+But the long-context ModernBERT reflex (**v0.6**, above) turned out to be the better overall path: simpler,
+one pass, higher macro (**0.753** vs the decoder's ~0.69 as served), ahead on logs, and far faster to serve.
+So **v0.6 is what's published**, and the decoder continues as research aimed at records and tables. Its
+engine, trainer and docs are **merged into
+[`main`](https://github.com/systemonedev/systemone-builder)**; it is experimental and not a published model.
+The method and the honest open items are in
 [docs/kenning.md](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning.md) and the
 [design notes](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning-xl-design.md).
 
