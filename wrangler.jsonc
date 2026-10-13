@@ -3,6 +3,10 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "systemone-dev",
+  // Branch builds run `wrangler preview` instead of `deploy`, and that command refuses to start
+  // without this block, so every pull request showed a failed Workers build while the site itself
+  // had built cleanly. Empty is all it needs: assets and compatibility settings stay top-level.
+  "previews": {},
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./dist",
