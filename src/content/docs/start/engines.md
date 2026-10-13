@@ -44,12 +44,48 @@ the mean across the families:
 | Logs: is a service failing, which one | **0.790** | 0.520 | 0.740 | 0.720 |
 | Latency per request (p50) | 285 ms | 35 ms | 125 ms | 152 ms |
 
-**Kenning v0.6** is a long-context (2,048-token) ModernBERT cross-encoder — a 400M reflex that sees the whole
+**Kenning v0.6** is a long-context (2,048-token) ModernBERT cross-encoder, a 400M reflex that sees the whole
 state in one pass. It **beats Clef on agent decisions, conversation, answer quality and logs** (logs 0.79,
-ahead of both Clef and Jev), and lifts the macro to **0.753 (from v0.5's 0.653)**, closing most of the gap to
-Clef (0.791) while staying a twentieth of its size. The longer window costs latency — ~285 ms vs v0.5's 35 ms
-— so **v0.5 stays the fast option** and v0.6 the accurate one. Records and tables still trail the big engines:
-those need computation, not just more context, which is what the experimental decoder below explores.
+ahead of both Clef and Jev) while staying a twentieth of its size. The longer window costs latency, so
+**v0.5 remains the fast option**. Records and tables still trail the big engines: those need computation,
+not just more context, which is what the experimental decoder below explores.
+
+Read the next section before choosing a model on this table alone. **v0.6 leads here, on the suite we
+wrote, and loses to v0.5 on the one we did not.**
+
+### A benchmark we did not write: WorkflowEvals
+
+[WorkflowEvals](https://huggingface.co/datasets/typesafe/workflowevals) is TypeSafe's own suite
+(Apache-2.0), built from realistic business documents and scored as per-question agreement with an
+OpenAI plus Anthropic consensus reference. We have never trained on it and never will. 240 items,
+60 per workflow, seed 42. **GLiDE** here is Fastino's hosted System One model, which speaks the same
+wire format and is run for comparison only, never trained on:
+
+| Workflow | Kenning v0.5 | Kenning v0.6 | GLiDE |
+|---|---|---|---|
+| **Mean over workflows** | **0.625** | 0.575 | **0.800** |
+| Agent traces: what went wrong, and where | 0.533 | 0.483 | 0.733 |
+| Customer service: intent, urgency, risk | 0.684 | 0.667 | 0.817 |
+| Invoices: line items, totals, policy | 0.618 | 0.517 | 0.933 |
+| Security alerts: severity, evidence, exposure | 0.667 | 0.633 | 0.717 |
+| Latency per request (p50) | 407 ms | 849 ms | 405 ms |
+| Identical answer on repeat | **5/5** | **5/5** | 3/5 |
+
+Three things worth saying plainly about this table.
+
+- **v0.5 beats v0.6 here, the reverse of our own suite.** Our `general` suite is largely rule-generated
+  by us, and it rewarded a change that did not generalise. If you are choosing between the two, measure
+  on your own data rather than trusting either table.
+- **GLiDE leads by 0.175**, and most of that is the structured documents. Some of the remainder is a
+  limit of the architecture rather than of training: scoring each option independently cannot express
+  "the *earliest* step that satisfies a predicate", which is what the agent-trace questions ask.
+- **Kenning is deterministic and GLiDE is not.** Same request, same weights, same hardware, same answer,
+  verified over repeats. That is a property you can build a threshold on.
+
+v0.5's 8 errors on this suite are a real defect: its 512-token window drops some of the longest invoice
+states. How we found the rest, including three measurement bugs of our own that were worth 0.16 of the
+apparent gap, is written up in
+[Half the Gap Was Ours](/blog/half-the-gap-was-ours/).
 
 ### Experimental: Kenning-XL (decoder)
 
@@ -80,13 +116,17 @@ The method and the honest open items are in
 
 How to read this honestly:
 
-- **Kenning is close to Clef on text, and well behind on structured state.** On records, tables, agent
-  steps and logs it is often near chance. It reads 512 tokens per option, so long logs get cut off, and
-  its training data was mostly short text. Clef is a 9B language model with a decision head. If your
-  state is a record or an agent step, measure Kenning on your own data before trusting it, or
+- **Kenning is close to Clef on text, and still behind on records and tables.** Those need arithmetic
+  over the state rather than more of it, so more context does not fix them; v0.6 reaches 0.681 and 0.680
+  where Clef reaches 0.857 and 0.860. Agent steps and logs are no longer the weak point: v0.6 is ahead
+  of both Clef and Jev on logs. If your state is a record or a table, measure on your own data before
+  trusting any of these numbers, or
   [train it for your problem](/concepts/how-models-are-trained/#training-for-your-own-problem).
-- **It's about 20 times smaller and 4 times faster.** In the email suites it was right whenever it was
-  sure, apart from one spam message: it stays humble rather than confidently wrong.
+- **The two models trade context for speed.** v0.5 reads 512 tokens and answers in about 35 ms, so long
+  states get cut off. v0.6 reads 2,048 and is several times slower. Neither is strictly better: pick by
+  how long your state is and how much latency you have.
+- **It's about 20 times smaller than Clef.** In the email suites it was right whenever it was sure, apart
+  from one spam message: it stays humble rather than confidently wrong.
 - **Small suites are noisy.** In a 50-item task, each item moves the number by 2 points. The suites are
   open: run them yourself, and add your own.
 - Full method, per-task results and caveats are in the
