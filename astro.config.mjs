@@ -40,6 +40,11 @@ export default defineConfig({
               title: 'systemonedev',
               url: 'https://github.com/systemonedev',
             },
+            david: {
+              name: 'David Rodriguez',
+              title: 'Kenning and SystemOne Builder',
+              url: 'https://github.com/jesusdrodriguez',
+            },
           },
         }),
       ],
