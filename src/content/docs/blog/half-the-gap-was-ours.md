@@ -3,7 +3,7 @@ title: 'Half the Gap Was Ours: What Happened When We Benchmarked Kenning Against
 description: Our own benchmark said the new model was better. A third-party benchmark said it was worse. Diagnosing that recovered about half of what looked like a model-quality gap, and the follow-up experiment was more interesting than the fix.
 date: 2026-10-13T09:00:00Z
 authors:
-  - maintainers
+  - david
 excerpt: We published Kenning v0.6 because it beat v0.5 on the benchmark we wrote. The first time we ran a benchmark we did not write, v0.6 scored worse than the model it replaced. Three of the defects turned out to be ours, not the model's.
 tags: [kenning, benchmarks, engineering]
 ---
