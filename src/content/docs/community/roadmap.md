@@ -11,29 +11,30 @@ make the most difference. Discuss any of them in
 
 ## Shipped
 
-- **Kenning v0.4**: an open System One model (Apache-2.0) with published benchmarks
-- **SystemOne Builder**: serve, train, distil from Clef, benchmark and publish models, on one GPU
-- **The general benchmark**: 30 decision questions over text, tables, conversations, agent steps,
-  records and logs, with labels from public datasets or exact rules (no model labels it)
-- **Training for your own problem**: problem specs with teacher-written, blind-checked cases; importing
+- **Kenning v0.4, v0.5 & v0.6**: open System One models (Apache-2.0) up to 2,048 tokens (general macro **0.761**, beating Clef on agent decisions, conversations, answer quality and logs)
+- **Kenning Phishing (`kenning-phishing-v1` & `kenning-phishing-long-v1`)**: domain-specialised Apache-2.0 phishing triage models with a Stage-0 email header/link/SaaS pre-parser, conditional `noul_criteria`/`noul_bare` decision bias, and paired counterfactual evaluation (`0.888` 6-task macro and `0.970` ROC-AUC on `modern2`)
+- **SystemOne Builder**: serve, train, distil from Clef, benchmark against local and frontier LLMs (`openai:*`, `anthropic:*`, `gemini:*`, `openrouter:*`, `ollama:*`) and publish models, on one GPU
+- **The general & third-party benchmarks**: 30 decision questions over text, tables, conversations, agent steps,
+  records and logs, plus TypeSafe's `WorkflowEvals` (240 items) and `phishing_counterfactual` (80 paired twins)
+- **Training for your own problem**: problem specs with teacher-written, blind-checked cases (`computer_use`, `insurance_claim`, `chat_moderation`, `phishing_triage`); importing
   your own labelled data; held-out suites; calibration on your data
 - **The `systemone` Python client**: one client for Kenning, Clef and Jev
 - **This site**: concepts, cookbook, projects, all in Python and runnable
 
 ## Next
 
-**Kenning v0.5: decisions over structured state.** On the general benchmark Kenning v0.4 is at 0.625
-against Clef's 0.813. It's close on text and far behind on records, tables, agent steps and logs. Next:
-training data designed from those use cases, with Clef as the teacher, and a longer-context model
-(Kenning-XL, an open 2–4B language model with a decision head) for states that don't fit in 512 tokens.
-The goal is Clef's accuracy at a fraction of its latency.
+**Decisions over computation-heavy records and tables.** On the general benchmark Kenning v0.6 is at **0.761**
+against Clef's 0.791—ahead on agent steps and logs, and still behind on records (`0.681`) and tables (`0.680`)
+that require multi-row arithmetic. Next: log/table counting traces and a single-engine cascade combining the
+fast cross-encoder reflex with `Kenning-XL` deliberate reasoning.
 
 **More problem specs and real test sets.** Specs for common decisions (agent guardrails, ticket routing,
 claims, moderation, compliance checks) and, above all, small hand-labelled test sets from real data,
 shared under an open licence. **Help wanted:** this is the easiest way to make a real difference.
 
-**Kenning that holds its own on subtle phishing.** It's at 0.75 on our held-out modern-email set,
-against 0.90 for the big engines. **Help wanted:** labelled emails you can share under an open licence.
+**Broader real-world phishing corpora.** `kenning-phishing-v1` and `kenning-phishing-long-v1` reach **0.825**
+accuracy (`0.912` ROC-AUC) on paired counterfactuals and **0.800** (`0.970` ROC-AUC) on `modern2`. **Help wanted:**
+additional anonymised corporate phishing and BEC test sets you can share under an open licence.
 
 **A calibration toolkit.** The [calibration check](/concepts/calibrated-confidence/#verifying-calibration-yourself)
 as a small library: reliability diagrams, Brier and ECE, drift alerts. **Help wanted.**

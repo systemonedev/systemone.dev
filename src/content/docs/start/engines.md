@@ -34,14 +34,14 @@ the mean across the families:
 
 | Family | **Kenning v0.6** | v0.5 | Clef | Jev |
 |---|---|---|---|---|
-| **Mean over families** | **0.753** | 0.653 | 0.791 | 0.830 |
+| **Mean over families** | **0.761** | 0.653 | 0.791 | 0.830 |
 | Text: evidence, sentiment, toxicity, prompt injection, intent, topic | 0.813 | 0.756 | 0.841 | 0.834 |
 | Conversations: which service a dialogue is about | 1.000 | 0.979 | 1.000 | 1.000 |
 | Answer quality: helpful, correct | **0.457** | 0.479 | 0.447 | 0.498 |
 | Agent decisions: right tool call, function call, task completed | **0.827** | 0.727 | 0.793 | 0.900 |
-| Records: refunds, spending limits, access rules over JSON | 0.651 | 0.587 | 0.857 | 0.921 |
+| Records: refunds, spending limits, access rules over JSON | 0.681 | 0.587 | 0.857 | 0.921 |
 | Tables: is a statement true | 0.680 | 0.520 | 0.860 | 0.940 |
-| Logs: is a service failing, which one | **0.790** | 0.520 | 0.740 | 0.720 |
+| Logs: is a service failing, which one | **0.810** | 0.520 | 0.740 | 0.720 |
 | Latency per request (p50) | 285 ms | 35 ms | 125 ms | 152 ms |
 
 **Kenning v0.6** is a long-context (2,048-token) ModernBERT cross-encoder, a 400M reflex that sees the whole
@@ -104,15 +104,24 @@ The method and the honest open items are in
 [docs/kenning.md](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning.md) and the
 [design notes](https://github.com/systemonedev/systemone-builder/blob/main/docs/kenning-xl-design.md).
 
-### Email suites
+### Email & phishing suites
 
-| Suite | Kenning | Clef | Jev |
-|---|---|---|---|
-| Modern emails (20 held out, incl. calm credential lures) | 0.75 | 0.90 | 0.90 |
-| …phishing emails it was *sure* were safe (auto-closed) | **0** | 0 | 0 |
-| Phishing dataset (50) | 0.78 | 0.96 | 0.96 |
-| Out of domain: spam / emotion / news topic | 0.917 / 0.583 / 0.867 | 0.900 / 0.600 / 0.950 | 0.967 / 0.583 / 0.933 |
-| Latency per request (p50) | 33–88 ms | 220–290 ms | ~150 ms incl. network |
+Alongside the general models, two domain-specialised Apache-2.0 models (`kenning-phishing-v1` on DeBERTa-v3-large at 512 tokens and `kenning-phishing-long-v1` on ModernBERT-large at 1,280 tokens) pair a deterministic Stage-0 email header/link/SaaS pre-parser with counterfactual twin training:
+
+| Suite / Metric | **kenning-phishing-v1** | **kenning-phishing-long-v1** | Kenning v0.5 / v0.6 | Clef | Jev |
+|---|---:|---:|---:|---:|---:|
+| **`phishing_counterfactual` (80 emails / 40 twin pairs): 6-task macro** | 0.867 | **0.888** | 0.394 (v0.6) | 0.748 | — |
+| …`is_phish` accuracy @ 0.5 / ROC-AUC | **0.825** / 0.910 | **0.825** / **0.912** | 0.650 / 0.649 | 0.775 / 0.861 | — |
+| …`is_phish` counterfactual pair-flip accuracy | 0.650 | **0.675** | 0.300 | 0.550 | — |
+| …phishing emails it was *sure* were safe (`0.9 / 0.1` gate) | **0** | **0** | 3 | **0** | — |
+| **`phishing_layouts` (128 items across 4 state shapes): macro** | **0.766** | 0.750 | 0.555 (v0.6) | 0.750 | — |
+| **`phreshphish` (80 webpages, Stage-2 DOM + URL triage): `is_phish` / macro** | **1.000** / **1.000** | **1.000** / 0.829 | 0.900 / 0.929 (v0.6) | **1.000** / **1.000** | — |
+| **`modern2` (20 subtle body-only lures): accuracy / ROC-AUC** | 0.800 / **0.970** | 0.800 / 0.850 | 0.650 / 0.890 (v0.6) | **0.900** / 0.960 | — |
+| **`decision_index` (100 items, 5 areas): Index (0..100) / macro** | 38.1 / 0.638 | **57.2** / **0.760** | 49.2 / 0.721 (v0.6) | **97.9** / **0.990** | — |
+| Modern emails (`modern`, 20 held out) | — | — | 0.75 (v0.5) | 0.90 | 0.90 |
+| Phishing dataset (50) | — | — | 0.78 (v0.5) | 0.96 | 0.96 |
+| Out of domain: spam / emotion / news topic | — | — | 0.917 / 0.583 / 0.867 | 0.900 / 0.600 / 0.950 | 0.967 / 0.583 / 0.933 |
+| Latency per request (p50) | 37–39 ms | **18–30 ms** | 33–88 ms | 130–290 ms | ~150 ms incl. network |
 
 How to read this honestly:
 

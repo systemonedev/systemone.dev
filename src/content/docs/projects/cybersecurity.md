@@ -57,18 +57,28 @@ def triage(msg) -> str:
 
 ### What to expect: measured, not promised
 
-`kenning-large-v0.5` on suites it was never trained on, with the 0.9 / 0.1 thresholds:
+For email gateway and SOC pre-filtering, we trained two domain-specialised Apache-2.0 models that pair a deterministic Stage-0 email header/link/SaaS pre-parser (`systemone_builder.kenning.phishing_data`) with paired counterfactual training:
+- **`kenning-phishing-v1`** (DeBERTa-v3-large, 512 tokens, ~37 ms p50): highest single-question discrimination (**0.970 ROC-AUC** on `modern2` and **0.766** macro across 4 state layouts)
+- **`kenning-phishing-long-v1`** (ModernBERT-large, 1,280 tokens, ~18–30 ms p50): highest 6-question triage macro (**0.888** on `phishing_counterfactual`, **0.675** counterfactual twin-flip accuracy, **0.060** ECE)
 
-| Suite | Accuracy | Automated | Phishing auto-closed as safe |
-| :--- | ---: | ---: | ---: |
-| Modern emails (20, incl. calm credential lures) | 0.75 | 20% | **0** |
-| Phishing dataset (50 real emails) | 0.78 | 44% | **0** |
-| Same emails in 4 layouts (200) | 0.76–0.78 | 38% | **0** |
+Measured with `systemone bench` on held-out suites the models were never trained on (`0.90 / 0.10` automation thresholds):
 
-Kenning decided between a fifth and a half of the emails on its own, and every one of those
-automated decisions was right. Everything else went to an analyst. Larger engines do better on subtle
-lures: Clef and Jev scored 0.90 on the modern set (see [Engines](/start/engines/)). The pragmatic
-setup is Kenning first, with the uncertain middle band sent to a bigger engine or a person.
+| Benchmark Suite / Metric | **kenning-phishing-v1** | **kenning-phishing-long-v1** | Kenning v0.6 (general) | Qwen2.5-7B-Instruct (XL) | Clef-flash (9B) |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| **`phishing_counterfactual` (80 emails / 40 twin pairs): 6-task macro** | 0.867 | **0.888** | 0.394 | 0.602 | 0.748 |
+| …`is_phish` accuracy @ 0.5 / ROC-AUC | **0.825** / 0.910 | **0.825** / **0.912** | 0.650 / 0.649 | 0.500 / 0.588 | 0.775 / 0.861 |
+| …`is_phish` counterfactual pair-flip accuracy | 0.650 | **0.675** | 0.300 | 0.000 | 0.550 |
+| …`is_phish` Brier / ECE (lower is better) | 0.125 / 0.093 | **0.124** / **0.060** | 0.299 / 0.270 | 0.500 / 0.500 | 0.157 / 0.122 |
+| …`is_phish` accuracy when automated (`p >= 0.9` or `<= 0.1`) | **100.0%** | 96.4% | 66.7% | 50.0% | **100.0%** |
+| …`is_phish` phishing auto-closed as safe | **0** | **0** | 3 | 40 | **0** |
+| …`recommended_action` (deliver / escalate / quarantine) | 0.812 | **0.850** | 0.325 | 0.575 | 0.487 |
+| **`phishing_layouts` (128 items across 4 state shapes): macro** | **0.766** | 0.750 | 0.555 | 0.500 | 0.750 |
+| **`phreshphish` (80 webpages, Stage-2 DOM + URL triage): `is_phish` / macro** | **1.000** / **1.000** | **1.000** / 0.829 | 0.900 / 0.929 | **1.000** / 0.983 | **1.000** / **1.000** |
+| **`modern2` (20 subtle body-only lures): accuracy / ROC-AUC** | 0.800 / **0.970** | 0.800 / 0.850 | 0.650 / 0.890 | 0.500 / 0.640 | **0.900** / 0.960 |
+| **`decision_index` (100 items, 5 areas): Index (0..100) / macro** | 38.1 / 0.638 | **57.2** / **0.760** | 49.2 / 0.721 | 72.8 / 0.843 | **97.9** / **0.990** |
+| Latency p50 (`phishing_layouts` / `modern2`) | 39 ms / 37 ms | **30 ms / 18 ms** | 33 ms / 19 ms | 124 ms / 46 ms | 234 ms / 130 ms |
+
+Why counterfactual pair-flip accuracy matters: each of the 40 held-out twin pairs in `phishing_counterfactual` has two nearly identical emails—same sender persona, subject, and prose—where **only** the causal indicator changes (a link domain mismatch vs. an aligned domain, a lookalike homoglyph vs. the real vendor domain, an external SaaS sharer vs. an internal colleague, or an unauthenticated reply-to hijack). Scoring a twin pair requires predicting both `p(phish) >= 0.5` on the attack email and `p(phish) < 0.5` on its benign twin. Both `kenning-phishing-v1` and `kenning-phishing-long-v1` auto-closed **zero** phishing emails as safe on the counterfactual and layout suites while running 6–8× faster than the 9B teacher. See [Engines](/start/engines/) for the full comparison.
 
 :::caution[Measure on your own mail first]
 These suites are small and public. Before quarantining automatically, run Kenning in **shadow mode**

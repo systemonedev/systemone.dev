@@ -4,7 +4,7 @@
 
 Learn to build with models that answer typed questions about your program's state with calibrated
 probabilities, in milliseconds, without generating text. Every code sample runs against open models
-([Kenning](https://huggingface.co/systemonedev/kenning-large-v0.4)) through the
+([Kenning v0.6](https://huggingface.co/systemonedev/kenning-large-v0.6), [Kenning v0.5](https://huggingface.co/systemonedev/kenning-large-v0.5), and `kenning-phishing-v1`) through the
 [`systemone-client`](https://pypi.org/project/systemone-client/) package, and works unchanged with Clef
 and Jev.
 
