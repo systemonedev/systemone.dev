@@ -12,10 +12,10 @@ make the most difference. Discuss any of them in
 ## Shipped
 
 - **Kenning v0.4, v0.5 & v0.6**: open System One models (Apache-2.0) up to 2,048 tokens (general macro **0.761**, beating Clef on agent decisions, conversations, answer quality and logs)
-- **Kenning Phishing (`kenning-phishing-v1` & `kenning-phishing-long-v1`)**: domain-specialised Apache-2.0 phishing triage models with a Stage-0 email header/link/SaaS pre-parser, conditional `noul_criteria`/`noul_bare` decision bias, and paired counterfactual evaluation (`0.888` 6-task macro and `0.970` ROC-AUC on `modern2`)
+- **Kenning Phishing (`kenning-phishing-v1.1` & `kenning-phishing-long-v1.1`)**: domain-specialised Apache-2.0 phishing triage models with Stage-0 email/webpage pre-parsers, 50% signal dropout, `Clef-flash` soft-label distillation, and a two-stage cascade (`0.795` 6-task macro on 48 hand-written counterfactuals; `0.950` accuracy / `0.993` ROC-AUC on 80 real `phreshphish/phreshphish` webpages)
 - **SystemOne Builder**: serve, train, distil from Clef, benchmark against local and frontier LLMs (`openai:*`, `anthropic:*`, `gemini:*`, `openrouter:*`, `ollama:*`) and publish models, on one GPU
 - **The general & third-party benchmarks**: 30 decision questions over text, tables, conversations, agent steps,
-  records and logs, plus TypeSafe's `WorkflowEvals` (240 items) and `phishing_counterfactual` (80 paired twins)
+  records and logs, plus TypeSafe's `WorkflowEvals` (240 items), `phishing_counterfactual` (48 hand-written twins), and `phreshphish` (80 real test-split webpages)
 - **Training for your own problem**: problem specs with teacher-written, blind-checked cases (`computer_use`, `insurance_claim`, `chat_moderation`, `phishing_triage`); importing
   your own labelled data; held-out suites; calibration on your data
 - **The `systemone` Python client**: one client for Kenning, Clef and Jev
@@ -32,8 +32,9 @@ fast cross-encoder reflex with `Kenning-XL` deliberate reasoning.
 claims, moderation, compliance checks) and, above all, small hand-labelled test sets from real data,
 shared under an open licence. **Help wanted:** this is the easiest way to make a real difference.
 
-**Broader real-world phishing corpora.** `kenning-phishing-v1` and `kenning-phishing-long-v1` reach **0.825**
-accuracy (`0.912` ROC-AUC) on paired counterfactuals and **0.800** (`0.970` ROC-AUC) on `modern2`. **Help wanted:**
+**Broader real-world phishing corpora.** `kenning-phishing-v1.1` and `kenning-phishing-long-v1.1` reach **0.729**
+accuracy (`0.842` ROC-AUC) on the 48 hand-written counterfactuals, **0.800** (`0.900` ROC-AUC) on `modern2`, and
+**0.950** (`0.993` ROC-AUC) on 80 real `phreshphish` webpages. **Help wanted:**
 additional anonymised corporate phishing and BEC test sets you can share under an open licence.
 
 **A calibration toolkit.** The [calibration check](/concepts/calibrated-confidence/#verifying-calibration-yourself)
