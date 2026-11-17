@@ -71,8 +71,9 @@ Measured with `systemone bench` on held-out suites (`0.90 / 0.10` automation thr
 | **`phishing_counterfactual_synthetic` (32 in-dist templates): macro** | 0.990 | **1.000** | 0.365 | 0.818 |
 | **`phishing_layouts` (160 items across 4 state shapes): macro / `raw_email`** | 0.756 / 0.725 | 0.719 / 0.700 | 0.556 / 0.550 | **0.769** / **0.750** |
 | **`phreshphish` (80 real webpages, Stage-2 DOM + URL triage): `is_phish` / ROC-AUC** | **0.950** / **0.993** | 0.925 / 0.988 | 0.600 / 0.781 | 0.938 / 0.978 |
+| **`PhishNChips` (400 real Decision Index #56 emails): `is_phishing` / ROC-AUC** | 0.662 / 0.709 | 0.713 / 0.810 | 0.510 / 0.633 | **0.748** / **0.852** |
 | **`modern2` (20 subtle body-only lures): accuracy / ROC-AUC** | 0.800 / 0.900 | 0.700 / 0.920 | 0.650 / 0.890 | **0.900** / **0.960** |
-| Latency p50 (`phishing_layouts` / `modern2` / `phreshphish`) | **42 / 33 / 122 ms** | 99 / 138 / 405 ms | 33 / 44 / 93 ms | 915 / 367 / 1456 ms |
+| Latency p50 (`phishing_layouts` / `modern2` / `PhishNChips`) | **42 / 33 / 62 ms** | 99 / 138 / **34 ms** | 33 / 44 / 49 ms | 915 / 367 / 238 ms |
 
 How to read these numbers honestly:
 - **On `is_phish` over the 48 hand-written held-out counterfactual twins**, the 400M Kenning models (`0.729`) improve over `v0.6` (`0.667`) and still trail the 9B `Clef-flash` (`0.812`). On the full 6-question triage ticket (`recommended_action`, `action`, `ask`, `identity_claim`, `urgency`), `kenning-phishing-long-v1.1` leads at **0.795** macro vs. Clef's **0.701**, with **0** phishing emails auto-closed as safe.
