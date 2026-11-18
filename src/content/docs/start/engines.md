@@ -106,24 +106,26 @@ The method and the honest open items are in
 
 ### Email & phishing suites
 
-Alongside the general models, two domain-specialised Apache-2.0 models (`kenning-phishing-v1.1` on DeBERTa-v3-large at 512 tokens and `kenning-phishing-long-v1.1` on ModernBERT-large at 1,280 tokens) pair deterministic Stage-0 pre-parsers with 50% signal dropout and `Clef-flash` soft-label distillation (`alpha=0.5`):
+Alongside the general models, two domain-specialised Apache-2.0 models ([`kenning-phishing-v1.1`](https://huggingface.co/systemonedev/kenning-phishing-v1.1) on DeBERTa-v3-large at 512 tokens and [`kenning-phishing-long-v1.1`](https://huggingface.co/systemonedev/kenning-phishing-long-v1.1) on ModernBERT-large at 1,280 tokens) pair deterministic Stage-0 pre-parsers (auto-enriched at inference in `kenning/model.py`, including SafeLinks/Proofpoint URL unwrapping) with 50% signal dropout, `Clef-flash` soft-label distillation (`alpha=0.30`), empirical hard-label calibration, and a two-stage state-aware cascade (`kenning/cascade.py`):
 
 | Suite / Metric | **kenning-phishing-v1.1** | **kenning-phishing-long-v1.1** | Kenning v0.5 / v0.6 | Clef | Jev |
 |---|---:|---:|---:|---:|---:|
-| **`phishing_counterfactual` (48 hand-written held-out): 6-task macro** | 0.774 | **0.795** | 0.413 (v0.6) | 0.701 | — |
-| …`is_phish` accuracy @ 0.5 / ROC-AUC | 0.729 / 0.809 | 0.729 / 0.842 | 0.667 / 0.705 | **0.812** / **0.877** | — |
-| …`is_phish` counterfactual pair-flip accuracy | 0.458 | 0.458 | 0.333 | **0.625** | — |
-| …phishing emails it was *sure* were safe (`0.9 / 0.1` gate) | **0** | **0** | 3 | **0** | — |
-| **`phishing_counterfactual_synthetic` (32 in-dist templates): macro** | 0.990 | **1.000** | 0.365 | 0.818 | — |
-| **`phishing_layouts` (160 items across 4 state shapes): macro** | 0.756 | 0.719 | 0.556 (v0.6) | **0.769** | — |
-| **`phreshphish` (80 real webpages, Stage-2 DOM + URL triage): `is_phish` / ROC-AUC** | **0.950** / **0.993** | 0.925 / 0.988 | 0.600 / 0.781 (v0.6) | 0.938 / 0.978 | — |
-| **`PhishNChips` (400 real Decision Index #56 emails): `is_phishing` / ROC-AUC** | 0.662 / 0.709 | 0.713 / 0.810 | 0.510 / 0.633 (v0.6) | **0.748** / **0.852** | — |
-| **`decision_index` (320 real stratified DI 0.3 items, 32/37 tracks): Index (0..100)** | 22.4 | 22.1 | 27.4 (v0.6) | **61.9** | — |
-| **`modern2` (20 subtle body-only lures): accuracy / ROC-AUC** | 0.800 / 0.900 | 0.700 / 0.920 | 0.650 / 0.890 (v0.6) | **0.900** / **0.960** | — |
+| **`phishing_counterfactual` (48 hand-written held-out): 6-task macro** | 0.826 | **0.868** | 0.399 (v0.6) | 0.722 | — |
+| …`is_phish` accuracy @ 0.5 / ROC-AUC | 0.854 / 0.953 | **0.917** / **0.972** | 0.646 / 0.693 | 0.833 / 0.905 | — |
+| …`is_phish` counterfactual pair-flip accuracy | 0.708 | **0.833** | 0.292 | 0.667 | — |
+| …`is_phish` auto-triage rate / FN auto-closed (`0.9 / 0.1` gate) | 60.4% / **0** | **75.0%** / 1 | 56.2% / 3 | 25.0% / **0** | — |
+| **`phishing_counterfactual_synthetic` (32 in-dist templates): macro** | 0.995 | **1.000** | 0.464 | 0.823 | — |
+| **`phishing_layouts` (160 items across 4 state shapes): macro** | **0.856** | 0.825 | 0.556 (v0.6) | 0.781 | — |
+| **`phreshphish` (80 real webpages, Stage-0 DOM + URL triage): `is_phish` / ROC-AUC** | **0.963** / **0.992** | 0.925 / 0.983 | 0.600 / 0.781 (v0.6) | 0.938 / 0.978 | — |
+| **`PhishNChips` (400 real Decision Index #56 emails): `is_phishing` / ROC-AUC** | 0.900 / 0.974 | **0.953** / **0.984** | 0.510 / 0.633 (v0.6) | 0.748 / 0.852 | — |
+| …`PhishNChips` `verdict` (`choice`) / Recall @ 1% FPR / auto-triage | **0.905** / 0.875 / 57.5% | 0.870 / **0.945** / **83.2%** | 0.527 / 0.240 / 45.8% | 0.743 / 0.315 / 41.2% | — |
+| **`decision_index` (320 real stratified DI 0.3 items, 32/37 tracks): Index (0..100)** | 22.9 | 22.8 | 27.4 (v0.6) | **61.9** | — |
+| …DI areas (`Retrieval / Lang / Tools / Knowledge / Arts`) | **31.8** / 26.1 / 22.0 / 15.7 / 17.2 | **36.2** / 30.7 / 16.8 / 13.6 / 10.5 | 22.5 / 52.0 / 19.8 / 14.9 / 19.5 | 25.4 / **76.7 / 77.8 / 62.9 / 65.5** | — |
+| **`modern2` (20 subtle body-only lures): accuracy / ROC-AUC** | **0.950** / **1.000** | 0.750 / 0.950 | 0.650 / 0.890 (v0.6) | 0.900 / 0.960 | — |
 | Modern emails (`modern`, 20 held out) | — | — | 0.75 (v0.5) | 0.90 | 0.90 |
 | Phishing dataset (50) | — | — | 0.78 (v0.5) | 0.96 | 0.96 |
 | Out of domain: spam / emotion / news topic | — | — | 0.917 / 0.583 / 0.867 | 0.900 / 0.600 / 0.950 | 0.967 / 0.583 / 0.933 |
-| Latency per request (p50) | 33–122 ms | 99–405 ms | 33–88 ms | 367–1456 ms | ~150 ms incl. network |
+| Latency per request (p50) | 32–120 ms | 23–86 ms | 18–91 ms | 113–321 ms | ~150 ms incl. network |
 
 How to read this honestly:
 

@@ -57,28 +57,49 @@ def triage(msg) -> str:
 
 ### What to expect: measured, not promised
 
-For email gateway and SOC pre-filtering, we trained two domain-specialised Apache-2.0 models (`kenning-phishing-v1.1` on DeBERTa-v3-large and `kenning-phishing-long-v1.1` on ModernBERT-large) that pair deterministic Stage-0 email/webpage pre-parsers with 50% signal dropout, `Clef-flash` soft-label distillation (`alpha=0.5`), and a two-stage cascade (`kenning/cascade.py`):
+For email gateway and SOC pre-filtering, we trained two domain-specialised Apache-2.0 models ([`kenning-phishing-v1.1`](https://huggingface.co/systemonedev/kenning-phishing-v1.1) on DeBERTa-v3-large and [`kenning-phishing-long-v1.1`](https://huggingface.co/systemonedev/kenning-phishing-long-v1.1) on ModernBERT-large) that pair deterministic Stage-0 email/webpage pre-parsers (wired into inference in `kenning/model.py`, including SafeLinks/Proofpoint URL unwrapping) with 50% signal dropout, `Clef-flash` soft-label distillation (`alpha=0.30`), empirical hard-label calibration, and a two-stage state-aware cascade (`kenning/cascade.py`):
 
 Measured with `systemone bench` on held-out suites (`0.90 / 0.10` automation thresholds):
 
 | Benchmark Suite / Metric | **kenning-phishing-v1.1** | **kenning-phishing-long-v1.1** | Kenning v0.6 (general) | Clef-flash (9B) |
 | :--- | ---: | ---: | ---: | ---: |
-| **`phishing_counterfactual` (48 hand-written held-out): 6-task macro** | 0.774 | **0.795** | 0.413 | 0.701 |
-| …`is_phish` accuracy @ 0.5 / ROC-AUC | 0.729 / 0.809 | 0.729 / 0.842 | 0.667 / 0.705 | **0.812** / **0.877** |
-| …`is_phish` counterfactual pair-flip accuracy | 0.458 | 0.458 | 0.333 | **0.625** |
-| …`is_phish` phishing auto-closed as safe | **0** | **0** | 3 | **0** |
-| …`recommended_action` (deliver / escalate / quarantine) | 0.625 | **0.708** | 0.396 | 0.479 |
-| **`phishing_counterfactual_synthetic` (32 in-dist templates): macro** | 0.990 | **1.000** | 0.365 | 0.818 |
-| **`phishing_layouts` (160 items across 4 state shapes): macro / `raw_email`** | 0.756 / 0.725 | 0.719 / 0.700 | 0.556 / 0.550 | **0.769** / **0.750** |
-| **`phreshphish` (80 real webpages, Stage-2 DOM + URL triage): `is_phish` / ROC-AUC** | **0.950** / **0.993** | 0.925 / 0.988 | 0.600 / 0.781 | 0.938 / 0.978 |
-| **`PhishNChips` (400 real Decision Index #56 emails): `is_phishing` / ROC-AUC** | 0.662 / 0.709 | 0.713 / 0.810 | 0.510 / 0.633 | **0.748** / **0.852** |
-| **`modern2` (20 subtle body-only lures): accuracy / ROC-AUC** | 0.800 / 0.900 | 0.700 / 0.920 | 0.650 / 0.890 | **0.900** / **0.960** |
-| Latency p50 (`phishing_layouts` / `modern2` / `PhishNChips`) | **42 / 33 / 62 ms** | 99 / 138 / **34 ms** | 33 / 44 / 49 ms | 915 / 367 / 238 ms |
+| **`phishing_counterfactual` (48 hand-written held-out): 6-task macro** | 0.826 | **0.868** | 0.399 | 0.722 |
+| …`is_phish` accuracy @ 0.5 / ROC-AUC | 0.854 / 0.953 | **0.917** / **0.972** | 0.646 / 0.693 | 0.833 / 0.905 |
+| …`is_phish` counterfactual pair-flip accuracy | 0.708 | **0.833** | 0.292 | 0.667 |
+| …`is_phish` auto-triage rate / phishing auto-closed as safe | 60.4% / **0** | **75.0%** / 1 | 56.2% / 3 | 25.0% / **0** |
+| …`recommended_action` (deliver / escalate / quarantine) | **0.854** | 0.833 | 0.375 | 0.500 |
+| **`phishing_counterfactual_synthetic` (32 in-dist templates): macro** | 0.995 | **1.000** | 0.464 | 0.823 |
+| **`phishing_layouts` (160 items across 4 state shapes): macro / `raw_email`** | **0.856** / 0.725 | 0.825 / 0.725 | 0.556 / 0.550 | 0.781 / **0.750** |
+| **`phreshphish` (80 real webpages, Stage-0 DOM + URL triage): `is_phish` / ROC-AUC** | **0.963** / **0.992** | 0.925 / 0.983 | 0.600 / 0.781 | 0.938 / 0.978 |
+| **`PhishNChips` (400 real Decision Index #56 emails): `is_phishing` / ROC-AUC** | 0.900 / 0.974 | **0.953** / **0.984** | 0.510 / 0.633 | 0.748 / 0.852 |
+| …`PhishNChips` `verdict` (`choice`) / auto-triage (`0.9 / 0.1`) | **0.905** / 57.5% | 0.870 / **83.2%** | 0.527 / 45.8% | 0.743 / 41.2% |
+| …`PhishNChips` Recall @ 1% FPR / FN auto-closed | 0.875 / 8 | **0.945** / 6 | 0.240 / 75 | 0.315 / **3** |
+| **`modern2` (20 subtle body-only lures): accuracy / ROC-AUC** | **0.950** / **1.000** | 0.750 / 0.950 | 0.650 / 0.890 | 0.900 / 0.960 |
+| Latency p50 (`phishing_layouts` / `modern2` / `PhishNChips` / `phreshphish`) | 41 / 32 / 75 / 120 ms | **35 / 23 / 54 / 86 ms** | 32 / 18 / 49 / 91 ms | 210 / 113 / 238 / 321 ms |
 
 How to read these numbers honestly:
-- **On `is_phish` over the 48 hand-written held-out counterfactual twins**, the 400M Kenning models (`0.729`) improve over `v0.6` (`0.667`) and still trail the 9B `Clef-flash` (`0.812`). On the full 6-question triage ticket (`recommended_action`, `action`, `ask`, `identity_claim`, `urgency`), `kenning-phishing-long-v1.1` leads at **0.795** macro vs. Clef's **0.701**, with **0** phishing emails auto-closed as safe.
-- **On 80 real `phreshphish/phreshphish` webpages** (`CC-BY-4.0`, pre-parsed through Stage-0 DOM/URL extraction), `kenning-phishing-v1.1` reaches **0.950 accuracy (`0.993` ROC-AUC)** at **122 ms p50** (12× faster than Clef's 1,456 ms).
-- The 32-item `phishing_counterfactual_synthetic` subset uses the same template generator as training (`0.990–1.000` in-distribution) and is reported separately so it never inflates the out-of-distribution `phishing_counterfactual` score. See [Engines](/start/engines/) for the full comparison.
+- **On `phishing_counterfactual` (48 hand-written held-out twins)** and **`PhishNChips` (400 real external emails)**, both 400M specialized models now match or beat the 9B `Clef-flash` teacher (`0.854–0.917` vs. `0.833` on `phishing_counterfactual`, pair-flip `0.708–0.833` vs. `0.667`; and `0.900–0.953` vs. `0.748` on `PhishNChips` at `54–75 ms` p50 vs. `238 ms`) while automating **57.5%–83.2%** of real traffic at `(0.90 / 0.10)`. Notice the trade-off on real `PhishNChips` mail: `kenning-phishing-v1.1` has `0` false positives acted on (`8` false negatives closed out of 400), whereas setting your **deliver** gate lower (such as `DELIVER_AT = 0.02` in the example above) keeps missed phish near zero in production.
+- **On `modern2` (20 subtle body-only lures)** and **80 real `phreshphish/phreshphish` webpages** (`CC-BY-4.0`), `kenning-phishing-v1.1` leads at **0.950 accuracy (`1.000` ROC-AUC)** on `modern2` and **0.963 accuracy (`0.992` ROC-AUC)** on `phreshphish` (`120 ms` p50, or `44 ms` via `cascade`). Note `kenning-phishing-long-v1.1` scores `0.750` on `modern2` at `@0.5` (`0.950` ROC-AUC) and `0.870` on `PhishNChips` `verdict`.
+- **General reasoning stays with larger or general models:** On `Decision Index 0.3` (320 stratified items across 32 tracks), domain-specialized cross-encoders score `22.8–22.9` vs. `kenning-large-v0.6` (`27.4`) and `Clef-flash` (`61.9`).
+- The 32-item `phishing_counterfactual_synthetic` subset uses the same template generator as training (`0.995–1.000` in-distribution) and is reported separately so it never inflates the out-of-distribution `phishing_counterfactual` score. See [Engines](/start/engines/) for the full comparison.
+
+#### Decision Index 0.3 breakdown & how the benchmarks are tested
+
+To separate domain specialisation from general reasoning, we evaluated both models on `320` stratified items across `32/37` non-gated [Jev Decision Index 0.3](https://huggingface.co/datasets/apolinario/decision-index) tracks using official chance-corrected `[0..100]` area weighting:
+
+| Decision Index 0.3 Area | **kenning-phishing-v1.1** | **kenning-phishing-long-v1.1** | kenning-large-v0.6 | kenning-large-v0.5 | Clef-flash (9B) |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| **Overall Decision Index (0..100)** | 22.9 | 22.8 | 27.4 | 20.5 | **61.9** |
+| Retrieval & Classification (incl. #56 PhishNChips) | 31.8 | **36.2** | 22.5 | 13.7 | 25.4 |
+| Language Understanding | 26.1 | 30.7 | 52.0 | 36.7 | **76.7** |
+| Tools & Automation | 22.0 | 16.8 | 19.8 | 11.1 | **77.8** |
+| Knowledge & Reasoning | 15.7 | 13.6 | 14.9 | 15.9 | **62.9** |
+| Arts & Human Taste | 17.2 | 10.5 | 19.5 | 21.2 | **65.5** |
+
+How each suite is isolated and measured:
+- **`phishing_counterfactual` (`48` items / `24` twin pairs)** is partitioned strictly by `pair_id` so twins never straddle train and test; every in-distribution synthetic template item is quarantined into **`phishing_counterfactual_synthetic`** (`32` items).
+- **`PhishNChips` (`400` items)** is a balanced (`200 / 200`) random sample from Decision Index catalog #56 (`added-rows.jsonl`, never trained on), scored with both the native 2-way `verdict` (`choice`) and `is_phishing` (`noul`) heads.
+- **`phreshphish` (`80` items)** comes from the real `phreshphish/phreshphish` (`CC-BY-4.0`) test split parsed through Stage-0 DOM/URL extraction; **`phishing_layouts` (`160` evaluations)** tests invariance across `structured_json`, `rfc822_headers`, `gateway_event`, and bare `raw_email`.
 
 :::caution[Measure on your own mail first]
 These suites are small and public. Before quarantining automatically, run Kenning in **shadow mode**
